@@ -31,10 +31,10 @@ async function main() {
     const factoryContract = new ethers.Contract(factoryAddress, factoryAbi, provider);
 
     // Listen for events emitted by the factory contract
-    factoryContract.on("TokenDeployed", (tokenAddress, event) => {
+    /*factoryContract.on("TokenDeployed", (tokenAddress, event) => {
         console.log("Token deployed at address:", tokenAddress);
         process.exit(0); // Exit the script once the event is received
-    });
+    });*/
 
 
     // Call the deployToken function of the factory contract
