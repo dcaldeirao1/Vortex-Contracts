@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
+import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+
 
 contract MyToken is ERC20 {
     constructor(string memory name, string memory symbol, uint256 totalSupply) ERC20(name, symbol) {
@@ -88,14 +90,14 @@ contract MyFactory {
 
     function addInitialLiquidity(address _token, address _pool) external {
 
+    uint256 tokenAmount = ERC20(_token).balanceOf(address(this));
+    uint256 wethAmount = 1; // Assuming you want to add 1 ETH to liquidity
+
     // Transfer tokens to position manager
     TransferHelper.safeTransfer(_token, address(positionManager), tokenAmount);
     TransferHelper.safeTransfer(weth, address(positionManager), wethAmount);
 
     emit TokenApproved(_token, _pool);
-
-    IWETH(weth).deposit{value: wethAmount}();
-    IWETH(weth).approve(address(positionManager), wethAmount);
     
     // Log the parameters before attempting to mint
     emit LiquidityAdded(_token, _pool, tokenAmount, wethAmount);
