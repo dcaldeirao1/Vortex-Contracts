@@ -20,7 +20,14 @@ contract MyFactory {
     IUniswapV3Factory public uniswapFactory;
     
     event TokenDeployed(address indexed tokenAddress);
+    
     event PoolCreated(address indexed tokenAddress, address indexed poolAddress);
+
+    event TokenApproved(address indexed tokenAddress, address indexed poolAddress);
+
+    event LiquidityAdded(address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount);
+    event LiquidityAdditionFailed(address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount, string error);
+
 
     constructor(address _positionManager, address _weth, address _uniswapFactory) {
         positionManager = INonfungiblePositionManager(_positionManager);
@@ -68,16 +75,30 @@ contract MyFactory {
         return false;
     }
 
+    // Fallback function to receive Ether
+    fallback() external payable {
+        // Handle received Ether if necessary
+    }
+
+    // Receive function to handle incoming Ether
+    receive() external payable {
+        // Handle received Ether
+    }
+
+
     function addInitialLiquidity(address _token, address _pool) external {
-    MyToken token = MyToken(_token);
 
-    uint256 tokenAmount = token.balanceOf(address(this));
-    uint256 wethAmount = 1; // Assuming you want to add 1 ETH to liquidity
+    // Transfer tokens to position manager
+    TransferHelper.safeTransfer(_token, address(positionManager), tokenAmount);
+    TransferHelper.safeTransfer(weth, address(positionManager), wethAmount);
 
-    token.approve(address(positionManager), tokenAmount);
+    emit TokenApproved(_token, _pool);
 
     IWETH(weth).deposit{value: wethAmount}();
     IWETH(weth).approve(address(positionManager), wethAmount);
+    
+    // Log the parameters before attempting to mint
+    emit LiquidityAdded(_token, _pool, tokenAmount, wethAmount);
 
     positionManager.mint(
         INonfungiblePositionManager.MintParams({
