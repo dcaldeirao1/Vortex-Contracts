@@ -52,7 +52,7 @@ contract MyFactory {
         return tokenAddress;
     }
 
-    function createPoolForToken(address _token) external returns (address poolAddress) {
+    function createPoolForToken(address _token, address factory_addy) external returns (address poolAddress) {
     //require(tokenExists(_token), "Token does not exist");
 
     poolAddress = uniswapFactory.getPool(_token, weth, 3000);
@@ -64,6 +64,7 @@ contract MyFactory {
 
         // Add initial liquidity to the pool
         //addInitialLiquidity(_token, poolAddress);
+        //addInitialLiquidity(_token, poolAddress, factory_addy);
 
         return poolAddress;
     }
@@ -87,17 +88,32 @@ contract MyFactory {
         // Handle received Ether
     }
 
+    function approveToken(address token, address spender, uint256 amount) external {
+    require(IERC20(token).approve(spender, amount), "Approval failed");
+}
 
-    function addInitialLiquidity(address _token, address _pool) external {
 
-    uint256 tokenAmount = ERC20(_token).balanceOf(address(this));
-    uint256 wethAmount = 1; // Assuming you want to add 1 ETH to liquidity
-
-    // Transfer tokens to position manager
-    TransferHelper.safeTransfer(_token, address(positionManager), tokenAmount);
-    TransferHelper.safeTransfer(weth, address(positionManager), wethAmount);
+    function addInitialLiquidity(address _token, address _pool, address factory_addy) external {
 
     emit TokenApproved(_token, _pool);
+
+    uint256 tokenAmount = ERC20(_token).balanceOf(address(this));
+    //uint256 tokenAmount = 30000;
+    uint256 wethAmount = 1; // Assuming you want to add 1 ETH to liquidity
+    
+    // Approve the factory contract to spend tokens
+    //ERC20(_token).approve(address(factory_addy), tokenAmount);
+    //ERC20(weth).approve(address(factory_addy), wethAmount);
+
+    // Transfer tokens to position manager
+    TransferHelper.safeTransferFrom(_token, factory_addy, address(positionManager), tokenAmount);
+    TransferHelper.safeTransferFrom(weth, factory_addy, address(positionManager), wethAmount);
+
+    // Approve the position manager to spend tokens
+    TransferHelper.safeApprove(_token, address(positionManager), tokenAmount);
+    TransferHelper.safeApprove(weth, address(positionManager), wethAmount);
+
+    
     
     // Log the parameters before attempting to mint
     emit LiquidityAdded(_token, _pool, tokenAmount, wethAmount);
@@ -114,10 +130,12 @@ contract MyFactory {
             amount0Min: 0,
             amount1Min: 0,
             recipient: _pool, // Use the provided pool address
-            deadline: block.timestamp + 300
+            deadline: block.timestamp 
         })
     );
 }
+
+
 }
 
 interface IWETH {
