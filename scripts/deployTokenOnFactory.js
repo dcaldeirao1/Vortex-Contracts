@@ -43,7 +43,7 @@ async function main() {
     // Replace this with the address of the deployed factory contract
     //const factoryAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; esta e o local
     //const factoryAddress = "0xf490f0ceeeb9AC8295797DB594b9827CAAacdAFC";  //esta ja tem 1 weth e 0.6sepolia eth + tokens
-    const factoryAddress = "0x716dE645962F1d8bF2d60AA844910EF2597C1cA9";
+    const factoryAddress = "0xb16b40b5d1F9B7478B3ffF43487042546aDbAa85";
 
     // Connect to the factory contract using its ABI and address
     const Factory = await ethers.getContractFactory("MyFactory");

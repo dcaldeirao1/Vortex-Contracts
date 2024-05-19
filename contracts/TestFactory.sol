@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+pragma abicoder v2;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+
+
 
 
 contract MyToken is ERC20 {
@@ -24,6 +27,9 @@ contract MyFactory {
     event TokenDeployed(address indexed tokenAddress);
     
     event PoolCreated(address indexed tokenAddress, address indexed poolAddress);
+
+    event PoolInitialized(address indexed poolAddress, uint160 sqrtPriceX96);
+    
 
     event TokenApproved(address indexed tokenAddress, address indexed poolAddress);
 
@@ -52,7 +58,7 @@ contract MyFactory {
         return tokenAddress;
     }
 
-    function createPoolForToken(address _token, address factory_addy) external returns (address poolAddress) {
+    function createPoolForToken(address _token) external returns (address poolAddress) {
     //require(tokenExists(_token), "Token does not exist");
 
     poolAddress = uniswapFactory.getPool(_token, weth, 3000);
@@ -61,13 +67,15 @@ contract MyFactory {
         emit PoolCreated(_token, poolAddress);
     }
 
-
-        // Add initial liquidity to the pool
-        //addInitialLiquidity(_token, poolAddress);
-        //addInitialLiquidity(_token, poolAddress, factory_addy);
-
         return poolAddress;
     }
+
+
+    function initializePool(address poolAddress, uint160 sqrtPriceX96) external {
+        IUniswapV3Pool(poolAddress).initialize(sqrtPriceX96);
+        emit PoolInitialized(poolAddress, sqrtPriceX96);
+    }
+
 
     function tokenExists(address _token) internal view returns (bool) {
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -92,50 +100,78 @@ contract MyFactory {
     require(IERC20(token).approve(spender, amount), "Approval failed");
 }
 
+    function calculateSqrtPriceX96(uint256 price) public pure returns (uint160) {
+        // Calculate the square root of the price and multiply by 2^96
+        // In Solidity, the sqrt can be calculated using Babylonian method
+        uint256 sqrtPrice = sqrt(price);
+        return uint160(sqrtPrice * 2**96 / 1e18);
+    }
+
+    function sqrt(uint256 y) internal pure returns (uint256 z) {
+        if (y > 3) {
+            z = y;
+            uint256 x = y / 2 + 1;
+            while (x < z) {
+                z = x;
+                x = (y / x + x) / 2;
+            }
+        } else if (y != 0) {
+            z = 1;
+        }
+    }
+
+    
 
     function addInitialLiquidity(address _token, address _pool, address factory_addy) external {
 
+
+    uint256 tokenAmount = 30000 * 10**18;
+    uint256 wethAmount = 1 * 10**18; 
+    uint256 wethAmountInWei = 0.1 * 10**18; // Assuming you want to add 0.1 ETH to liquidity
+
     emit TokenApproved(_token, _pool);
 
-    uint256 tokenAmount = ERC20(_token).balanceOf(address(this));
-    //uint256 tokenAmount = 30000;
-    uint256 wethAmount = 1; // Assuming you want to add 1 ETH to liquidity
-    
-    // Approve the factory contract to spend tokens
-    //ERC20(_token).approve(address(factory_addy), tokenAmount);
-    //ERC20(weth).approve(address(factory_addy), wethAmount);
+    require(IERC20(_token).balanceOf(address(this)) >= tokenAmount, "Not enough token balance");
+    require(IERC20(weth).balanceOf(address(this)) >= wethAmount, "Not enough WETH balance");
+
+    // Approve the position manager to pull the token and WETH from this contract
+    //IERC20(_token).approve(address(positionManager), tokenAmount);
+    //IERC20(weth).approve(address(positionManager), wethAmount);
 
     // Transfer tokens to position manager
-    TransferHelper.safeTransferFrom(_token, factory_addy, address(positionManager), tokenAmount);
-    TransferHelper.safeTransferFrom(weth, factory_addy, address(positionManager), wethAmount);
+    //TransferHelper.safeTransferFrom(_token, factory_addy, address(positionManager), tokenAmount);
+    //TransferHelper.safeTransferFrom(weth, factory_addy, address(positionManager), wethAmount);
 
     // Approve the position manager to spend tokens
     TransferHelper.safeApprove(_token, address(positionManager), tokenAmount);
     TransferHelper.safeApprove(weth, address(positionManager), wethAmount);
 
     
-    
     // Log the parameters before attempting to mint
     emit LiquidityAdded(_token, _pool, tokenAmount, wethAmount);
 
-    positionManager.mint(
-        INonfungiblePositionManager.MintParams({
-            token0: _token,
-            token1: weth,
-            fee: 3000,
-            tickLower: -887220,
-            tickUpper: 887220,
-            amount0Desired: tokenAmount,
-            amount1Desired: wethAmount,
-            amount0Min: 0,
-            amount1Min: 0,
-            recipient: _pool, // Use the provided pool address
-            deadline: block.timestamp 
-        })
-    );
-}
-
-
+    try positionManager.mint(
+            INonfungiblePositionManager.MintParams({
+                token0: _token,
+                token1: weth,
+                fee: 3000,
+                tickLower: -887220,
+                tickUpper: 887220,
+                amount0Desired: tokenAmount,
+                amount1Desired: wethAmount,
+                amount0Min: 0,
+                amount1Min: 0,
+                recipient: factory_addy,
+                deadline: block.timestamp + 5 minutes
+            })
+        ) returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) {
+            emit LiquidityAdded(_token, address(positionManager), tokenAmount, wethAmount);
+        } catch Error(string memory reason) {
+            emit LiquidityAdditionFailed(_token, address(positionManager), tokenAmount, wethAmount, reason);
+        } catch (bytes memory lowLevelData) {
+            emit LiquidityAdditionFailed(_token, address(positionManager), tokenAmount, wethAmount, "Low-level error");
+        }
+    }
 }
 
 interface IWETH {

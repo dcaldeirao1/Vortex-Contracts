@@ -24,24 +24,22 @@ async function main() {
     console.log("Interacting with the factory contract using the account:", deployer.address);
 
     // Replace this with the address of the deployed factory contract
-    const factoryAddress = "0x716dE645962F1d8bF2d60AA844910EF2597C1cA9";
+    const factoryAddress = "0xb16b40b5d1F9B7478B3ffF43487042546aDbAa85";
 
     // Connect to the factory contract using its ABI and address
     const Factory = await ethers.getContractFactory("MyFactory");
     const factory = await Factory.attach(factoryAddress);
 
-    const tokenAddress = "0x4AEab32b761D808C4687c4d4254604987B0e5E2C";
+    const tokenAddress = "0x1e4114b68d6becB1a4ac2dC4b7A672f27798a66D";
     //const _weth = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
 
     // Create a Uniswap pool paired with ETH
-    const poolAddress = await factory.createPoolForToken(tokenAddress, factoryAddress);
+    const poolAddress = await factory.createPoolForToken(tokenAddress);
     
 
     const receipt = await poolAddress.wait();
 
     console.log("Pool created successfully!");
-
-    //const pool_Address = "0x8824cb39116c6161620742633DbE94726eB3370E";
 
     // Get the PoolCreated event emitted by the factory contract
     const poolCreatedEvent = await getPoolCreatedEvent(factory, tokenAddress);
