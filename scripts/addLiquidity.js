@@ -37,22 +37,6 @@ async function getTokenApprovedEvent(factory) {
     return tokenApprovedEvent;
 }
 
-async function getLiquidityAddedEvent(factory) {
-    // Get the filter for the PoolCreated event
-    const filter = factory.filters.LiquidityAdded();
-
-    // Query the filter for events emitted by the factory contract
-    const events = await factory.queryFilter(filter);
-
-    // Log the events array to inspect its contents
-    //console.log("Events array:", events);
-
-    // Find the PoolCreated event matching the token address
-    const liquidityAddedEvent = events[events.length - 1]; // Assuming the latest event corresponds to the pool creation
-
-    return liquidityAddedEvent;
-}
-
 
 async function main() {
     const [deployer] = await ethers.getSigners();
@@ -77,30 +61,18 @@ async function main() {
     const tokenAmount = ethers.parseUnits("30000", 18); // 30,000 tokens
     const wethAmount = ethers.parseUnits("1", 18); // 1 WETH
 
-    // Calculate sqrtPriceX96 for initializing the pool
-     // Calculate sqrtPriceX96 using BigInt
-     // Ratio considering both tokens have 18 decimals
+    
+    // Calculate sqrtPriceX96 considering both tokens have 18 decimals
     const priceRatio = BigInt(10 ** 18) / BigInt(30000);
     const sqrtPriceRatio = sqrt(priceRatio * (BigInt(10 ** 18) / BigInt(10 ** 18)));
     const sqrtPriceX96 = (sqrtPriceRatio * (2n ** 96n)) / (10n ** 9n); // Scale to 2^96
     console.log(`Calculated sqrtPriceX96: ${sqrtPriceX96.toString()}`);
 
 
-
-
     // Initialize the pool
-    //const poolAddress = await factory.createPoolForToken(tokenAddress);
-    //const initializeTx = await factory.initializePool(pool_Address, sqrtPriceX96);
-    //await initializeTx.wait();
- 
+    const initializeTx = await factory.initializePool(pool_Address, sqrtPriceX96);
+    await initializeTx.wait();
 
-    const amountToApprove = 30000;
-    //await factory.approveToken(tokenAddress, positionManager_address, tokenAmount); // Approve tokens for the factory contract
-    //await factory.approveToken(WETH_address, positionManager_address, wethAmount); // Approve tokens for the factory contract
-
-    // Ensure sufficient balances and approve tokens
-    const weth = await ethers.getContractAt("IERC20", WETH_address);
-    const token = await ethers.getContractAt("IERC20", tokenAddress);
 
     // Approve tokens for the factory contract
     console.log("Approving tokens for the factory contract...");
@@ -113,9 +85,10 @@ async function main() {
     console.log("WETH approved.");
 
     console.log("Adding liquidity to the pool...");
-    const tx = await factory.addInitialLiquidity(tokenAddress, pool_Address, factoryAddress, {
+    const tx = await factory.addInitialLiquidity(tokenAddress, pool_Address, factoryAddress, tokenAmount, wethAmount,{
         gasLimit: 5000000 // Set a higher gas limit for adding liquidity
     });
+
     const receipt = await tx.wait();
 
     console.log("Liquidity added successfully!");

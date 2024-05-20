@@ -31,12 +31,10 @@ async function main() {
     const factory = await Factory.attach(factoryAddress);
 
     const tokenAddress = "0x1e4114b68d6becB1a4ac2dC4b7A672f27798a66D";
-    //const _weth = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
 
     // Create a Uniswap pool paired with ETH
     const poolAddress = await factory.createPoolForToken(tokenAddress);
     
-
     const receipt = await poolAddress.wait();
 
     console.log("Pool created successfully!");
@@ -52,45 +50,6 @@ async function main() {
     } else {
         console.error('Pool Creation event not found');
     }
-
-    // Add liquidity to the pool
-    //tx = await factory.addInitialLiquidity(tokenAddress, pool_Address);
-
-    
-
-    //console.log("Liquidity added successfully!");
-    //console.log("receipt = ",receipt);
-
-    // Check if receipt contains logs
-/*if (receipt.logs && receipt.logs.length > 0) {
-    // Parse logs to find the LiquidityAdded event
-    const liquidityAddedEvent = receipt.logs.find(
-        (log) => log.address.toLowerCase() === factoryAddress.toLowerCase() &&
-                  log.topics[0] === '0x...' // Replace with the keccak256 hash of the LiquidityAdded event signature
-    );
-
-    if (liquidityAddedEvent) {
-        // Extract the relevant data from the event
-        const token0 = ethers.utils.getAddress('0x' + liquidityAddedEvent.topics[1].slice(-40)); // Token0 address
-        const token1 = ethers.utils.getAddress('0x' + liquidityAddedEvent.topics[2].slice(-40)); // Token1 address
-        const liquidity = BigNumber.from(liquidityAddedEvent.data); // Liquidity amount
-        const poolAddress = ethers.utils.getAddress(liquidityAddedEvent.topics[3]); // Pool address
-
-        console.log('Liquidity Added:');
-        console.log('Token0:', token0);
-        console.log('Token1:', token1);
-        console.log('Liquidity:', liquidity.toString());
-        console.log('Pool Address:', poolAddress);
-    } else {
-        console.error('LiquidityAdded event not found in transaction receipt');
-    }
-    
-} else {
-    console.error('No logs found in transaction receipt');
-}*/
-
-  
-
 
 }
 
