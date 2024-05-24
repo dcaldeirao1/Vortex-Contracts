@@ -1,3 +1,4 @@
+//const ethers = require("hardhat");
 
 async function getPoolCreatedEvent(factory, tokenAddress) {
     // Get the filter for the PoolCreated event
@@ -37,9 +38,11 @@ async function main() {
     console.log("Interacting with the factory contract using the account:", deployer.address);
 
     // Replace these with your desired token name, symbol, and total supply
-    const tokenName = "Makuzilla";
-    const tokenSymbol = "MAKU";
-    const tokenSupply = "600";
+    // Extract parameters from command line arguments
+    const args = process.argv.slice(2);
+    const tokenName = agrs[0];
+    const tokenSymbol = agrs[1];
+    const tokenSupply = agrs[2];
     const tokenAddress = "0xfA831155fB801B0D5eDFd77C4058648C01Fa5321";
 
     // Replace this with the address of the deployed factory contract
