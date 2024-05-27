@@ -5,10 +5,10 @@ async function main() {
     const [deployer] = await ethers.getSigners();
     console.log("Removing liquidity with the account:", deployer.address);
 
-    const factoryAddress = "0x346848cBefE9743bA880A3985A50F83DF389E8Ea";
-    const tokenId = 15983; // The token ID of the liquidity position
-    const WETH_address = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
-    const positionManager_address = "0x1238536071E1c677A632429e3655c799b22cDA52";
+    const factoryAddress = "0xa1cAfCA613d2544360a6EDD0425ED73F3f4134a8";
+    const tokenId = 522166; // The token ID of the liquidity position
+    const WETH_address = "0x4200000000000000000000000000000000000006";
+    const positionManager_address = "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1";
 
     const Factory = await hre.ethers.getContractFactory("MyFactory");
     const factory = await Factory.attach(factoryAddress);
@@ -38,7 +38,7 @@ async function main() {
     console.log(`Price: ${price}`);
 
     // Calculate liquidity to remove based on desired amount of WETH
-    const wethAmountToRemove = ethers.parseUnits("0.1", 18); // 0.1 WETH
+    const wethAmountToRemove = ethers.parseUnits("0.0001", 18); // 0.1 WETH
 
     // Calculate the corresponding liquidity to remove
     const liquidityToRemove = calculateLiquidityToRemove(wethAmountToRemove, liquidity, price);

@@ -33,7 +33,8 @@ contract MyFactory {
     event LiquidityAdded(address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount);
     event LiquidityRemoved(address indexed token, uint256 tokenId, uint256 amount0, uint256 amount1);
     event LiquidityAdditionFailed(address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount, string error);
-
+    event FeesCollected(address indexed token, uint256 amount0, uint256 amount1);
+    event SwappedToWETH(address indexed token, uint256 amountIn, uint256 amountOut);
 
     constructor(address _positionManager, address _weth, address _uniswapFactory, address _swapRouter) {
         positionManager = INonfungiblePositionManager(_positionManager);
@@ -62,15 +63,13 @@ contract MyFactory {
 
     //(address token0, address token1) = _tokenA < _tokenB ? (_tokenA, _tokenB) : (_tokenB, _tokenA);
 
-    poolAddress = uniswapFactory.getPool(_token0, _token1, 3000);
+    poolAddress = uniswapFactory.getPool(_token0, _token1, 10000);
     if (poolAddress == address(0)) {
-        poolAddress = uniswapFactory.createPool(_token0, _token1, 3000);
+        poolAddress = uniswapFactory.createPool(_token0, _token1, 10000);
         emit PoolCreated(_token0, poolAddress);
     }
         return poolAddress;
     }
-
-
 
 
     function initializePool(address poolAddress, uint160 sqrtPriceX96) external {
@@ -121,9 +120,9 @@ contract MyFactory {
             INonfungiblePositionManager.MintParams({
                 token0: _token0,
                 token1: _token1,
-                fee: 3000,
-                tickLower: -887220,
-                tickUpper: 887220,
+                fee: 10000,
+                tickLower: -887200,
+                tickUpper: 887200,
                 amount0Desired: _token0Amount,
                 amount1Desired: _token1Amount,
                 amount0Min: 0,
@@ -184,22 +183,65 @@ contract MyFactory {
 }
 
 // Function to perform a swap from ETH to token
-    function swapETHForToken(address tokenOut, uint256 amountIn, uint256 amountOutMin) external payable {
+    function swapETHForToken(address tokenOut, uint256 amountIn) public payable returns (uint256 amountOut) {
+
+
+        //TransferHelper.safeApprove(weth, address(swapRouter), amountIn);
+        // Approve the router to spend WETH
+        IWETH(weth).deposit{value: msg.value}();
+        assert(IWETH(weth).transfer(address(this), amountIn));
+
         ISwapRouter.ExactInputSingleParams memory params =
             ISwapRouter.ExactInputSingleParams({
                 tokenIn: weth,
                 tokenOut: tokenOut,
-                fee: 3000,
+                fee: 10000,
                 recipient: msg.sender,
                 deadline: block.timestamp + 5 minutes,
                 amountIn: amountIn,
-                amountOutMinimum: amountOutMin,
+                amountOutMinimum: 0,
                 sqrtPriceLimitX96: 0
             });
 
-        swapRouter.exactInputSingle{value: msg.value}(params);
+        amountOut = swapRouter.exactInputSingle(params);
     }
 
+
+    function _swapTokenForWETH(address token, uint256 amountIn) internal {
+        //require(IERC20(token).approve(address(swapRouter), amountIn), "Approval failed");
+
+        // Approve the router to spend DAI.
+        TransferHelper.safeApprove(weth, address(swapRouter), amountIn);
+
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+            tokenIn: token,
+            tokenOut: weth,
+            fee: 3000,
+            recipient: address(this),
+            deadline: block.timestamp + 15,
+            amountIn: amountIn,
+            amountOutMinimum: 0,
+            sqrtPriceLimitX96: 0
+        });
+
+        uint256 amountOut = swapRouter.exactInputSingle(params);
+        emit SwappedToWETH(token, amountIn, amountOut);
+    }
+
+
+function collectFeesAndSwap(uint256 tokenId) external {
+        // Collect the fees from the position
+        (uint256 amount0, uint256 amount1) = positionManager.collect(
+            INonfungiblePositionManager.CollectParams({
+                tokenId: tokenId,
+                recipient: address(this),
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            })
+        );
+        emit FeesCollected(address(this), amount0, amount1);
+
+    }
 
 
 }

@@ -60,11 +60,14 @@ async function main() {
     //const totalSupply = "3000";
 
     // Replace this with the address of the deployed factory contract
-    const factoryAddress = "0xa1cAfCA613d2544360a6EDD0425ED73F3f4134a8";
+    const factoryAddress = "0x1b1381E2fb75F74036DFdCC51ACa244FB6946d98";
 
-    const WETH_address = "0x4200000000000000000000000000000000000006";
-    const positionManager_address = "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1";
-    const swapRouterAddress = "0x2626664c2603336E57B271c5C0b26F421741e481"; // Replace with the SwapRouter address on Sepolia
+    //SEPOLIA
+    const WETH_address = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
+
+    //BASE
+  /*  const WETH_address = "0x4200000000000000000000000000000000000006";
+    */
 
     //const tokenAddress = "0x90950111fcfF15474c670aA44890561F9624866C";
     //const pool_Address = "0xc28FE4D9ecd71A3B71FF469cE4C23671cd6dc180";
@@ -77,7 +80,7 @@ async function main() {
     const provider = ethers.getDefaultProvider(); // Update with your WebSocket provider URL
 
     const tokenAmount = ethers.parseUnits(tokenSupply, 18); // 1,000,000 tokens with 18 decimals
-    const wethAmount = ethers.parseUnits("0.0001", 18); // 0.1 WETH
+    const wethAmount = ethers.parseUnits("0.1", 18); // 0.1 WETH
 
     // Call the deployToken function of the factory contract
     const tx = await factory.deployToken(tokenName, tokenSymbol, tokenSupply);  //DEPLOY
@@ -119,9 +122,9 @@ async function main() {
 
     // Calculate sqrtPriceX96 considering both tokens have 18 decimals
     const priceRatio = BigInt(token1amount)* BigInt(10 ** 18) / BigInt(token0amount);
-    const sqrtPriceRatio = sqrt(priceRatio * (BigInt(10 ** 18) / BigInt(10 ** 18)));
-    const sqrtPriceX96 = (sqrtPriceRatio * (2n ** 96n)) / (10n ** 9n); // Scale to 2^96
-    //const sqrtPriceX96 = sqrtPriceRatio * BigInt(2 ** 96);
+    const sqrtPriceRatio = sqrt(priceRatio);
+    //const sqrtPriceX96 = (sqrtPriceRatio * (2n ** 96n)) / (10n ** 9n); // Scale to 2^96
+    const sqrtPriceX96 = sqrtPriceRatio * BigInt(2 ** 96)/BigInt(10 ** 9);
     console.log(`Calculated price ratio: ${priceRatio}`);
     console.log(`Calculated sqrt price ratio: ${sqrtPriceRatio}`);
     console.log(`Calculated sqrtPriceX96: ${sqrtPriceX96.toString()}`);
@@ -129,16 +132,6 @@ async function main() {
     // Initialize the pool
     const initializeTx = await factory.initializePool(pool_Address, sqrtPriceX96); //INITIALIZE POOL
     await initializeTx.wait();
-
-    // Approve tokens for the factory contract
-    console.log("Approving tokens for the factory contract...");
-    const approveTokenTx = await factory.approveToken(tokenAddress, positionManager_address, tokenAmount);
-    await approveTokenTx.wait();
-    console.log("Tokens approved.");
-
-    const approveWETHTx = await factory.approveToken(WETH_address, positionManager_address, wethAmount);
-    await approveWETHTx.wait();
-    console.log("WETH approved.");
 
     console.log("Adding liquidity to the pool...");
     const tx2 = await factory.addInitialLiquidity(token0, token1, factoryAddress, token0amount, token1amount,{
@@ -148,31 +141,6 @@ async function main() {
     await tx2.wait();
 
     console.log("Liquidity added successfully!");
-
-    const tokenContract = await ethers.getContractAt("IERC20", tokenAddress);
-    const wethContract = await ethers.getContractAt("IERC20", WETH_address);
-    //const tx3 = await tokenContract.approve(swapRouterAddress, tokenSupply);
-    
-
-     //await factory.approveToken(tokenAddress, positionManager_address, tokenSupply);
-     //await factory.approveToken(WETH_address, positionManager_address, wethAmount);
-
-    //await tx3.wait();
-
-    //await wethContract.approve(swapRouterAddress, ethers.parseEther("0.1"));
-
-    //console.log("Token approved for SwapRouter!");
-
-    //const amountIn = ethers.parseUnits("0.1", 18); // Amount of tokens to swap
-/*
-    console.log("Performing a swap from ETH to the token...");
-    const swapTx = await factory.swapETHForToken(tokenAddress, ethers.parseEther("0.1"), 0, {
-        value: ethers.parseEther("0.1")
-    });
-    await swapTx.wait();
-    console.log("Swap performed successfully!");
-    await swapTx.wait();*/
-
 
 }
 
