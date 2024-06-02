@@ -54,13 +54,13 @@ async function main() {
     console.log("Interacting with the factory contract using the account:", deployer.address);
 
     // Replace these with your desired token name, symbol, and total supply
-    const tokenName = "FunCoin";
-    const tokenSymbol = "FUN";
-    const tokenSupply = "1000";
+    const tokenName = "SwapCoin";
+    const tokenSymbol = "SWAP";
+    const tokenSupply = "100";
     //const totalSupply = "3000";
 
     // Replace this with the address of the deployed factory contract
-    const factoryAddress = "0x1b1381E2fb75F74036DFdCC51ACa244FB6946d98";
+    const factoryAddress = "0x4939fedB0ef5DC98c99D1B11bbdc3B43879706D3";
 
     //SEPOLIA
     const WETH_address = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
@@ -80,7 +80,7 @@ async function main() {
     const provider = ethers.getDefaultProvider(); // Update with your WebSocket provider URL
 
     const tokenAmount = ethers.parseUnits(tokenSupply, 18); // 1,000,000 tokens with 18 decimals
-    const wethAmount = ethers.parseUnits("0.1", 18); // 0.1 WETH
+    const wethAmount = ethers.parseUnits("0.01", 18); // 0.01 WETH
 
     // Call the deployToken function of the factory contract
     const tx = await factory.deployToken(tokenName, tokenSymbol, tokenSupply);  //DEPLOY
@@ -123,8 +123,8 @@ async function main() {
     // Calculate sqrtPriceX96 considering both tokens have 18 decimals
     const priceRatio = BigInt(token1amount)* BigInt(10 ** 18) / BigInt(token0amount);
     const sqrtPriceRatio = sqrt(priceRatio);
-    //const sqrtPriceX96 = (sqrtPriceRatio * (2n ** 96n)) / (10n ** 9n); // Scale to 2^96
-    const sqrtPriceX96 = sqrtPriceRatio * BigInt(2 ** 96)/BigInt(10 ** 9);
+    const sqrtPriceX96 = (sqrtPriceRatio * (2n ** 96n)) / (10n ** 9n); // Scale to 2^96
+    //const sqrtPriceX96 = sqrtPriceRatio * BigInt(2 ** 96)/BigInt(10 ** 9);
     console.log(`Calculated price ratio: ${priceRatio}`);
     console.log(`Calculated sqrt price ratio: ${sqrtPriceRatio}`);
     console.log(`Calculated sqrtPriceX96: ${sqrtPriceX96.toString()}`);

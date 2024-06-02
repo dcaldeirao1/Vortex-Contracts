@@ -8,6 +8,7 @@ import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+//import "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 
 
 
@@ -183,13 +184,13 @@ contract MyFactory {
 }
 
 // Function to perform a swap from ETH to token
-    function swapETHForToken(address tokenOut, uint256 amountIn) public payable returns (uint256 amountOut) {
+    function swapETHForToken(address tokenOut, uint amount_In) external payable returns (uint amountOut) {
+        
+        // Convert ETH to WETH
+        IWETH(weth).deposit{value: amount_In}();
 
-
-        //TransferHelper.safeApprove(weth, address(swapRouter), amountIn);
         // Approve the router to spend WETH
-        IWETH(weth).deposit{value: msg.value}();
-        assert(IWETH(weth).transfer(address(this), amountIn));
+        TransferHelper.safeApprove(weth, address(swapRouter), amount_In);
 
         ISwapRouter.ExactInputSingleParams memory params =
             ISwapRouter.ExactInputSingleParams({
@@ -197,8 +198,8 @@ contract MyFactory {
                 tokenOut: tokenOut,
                 fee: 10000,
                 recipient: msg.sender,
-                deadline: block.timestamp + 5 minutes,
-                amountIn: amountIn,
+                deadline: block.timestamp,
+                amountIn: amount_In,
                 amountOutMinimum: 0,
                 sqrtPriceLimitX96: 0
             });
@@ -216,7 +217,7 @@ contract MyFactory {
         ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
             tokenIn: token,
             tokenOut: weth,
-            fee: 3000,
+            fee: 10000,
             recipient: address(this),
             deadline: block.timestamp + 15,
             amountIn: amountIn,
@@ -245,6 +246,23 @@ function collectFeesAndSwap(uint256 tokenId) external {
 
 
 }
+
+
+/*interface ISwapRouter is IUniswapV3SwapCallback {
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
+
+    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
+}*/
+
 
 interface IWETH {
     function deposit() external payable;
