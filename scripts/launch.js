@@ -60,7 +60,7 @@ async function main() {
     //const totalSupply = "3000";
 
     // Replace this with the address of the deployed factory contract
-    const factoryAddress = "0x4939fedB0ef5DC98c99D1B11bbdc3B43879706D3";
+    const factoryAddress = "0xb92837d57943dD616cC65633b3C60688FC2b388F";
 
     //SEPOLIA
     const WETH_address = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";

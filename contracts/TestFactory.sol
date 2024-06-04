@@ -230,18 +230,18 @@ contract MyFactory {
     }
 
 
-function collectFeesAndSwap(uint256 tokenId) external {
-        // Collect the fees from the position
-        (uint256 amount0, uint256 amount1) = positionManager.collect(
+function collectFees(uint256 tokenId) external {
+        INonfungiblePositionManager.CollectParams memory params =
             INonfungiblePositionManager.CollectParams({
                 tokenId: tokenId,
                 recipient: address(this),
                 amount0Max: type(uint128).max,
                 amount1Max: type(uint128).max
-            })
-        );
-        emit FeesCollected(address(this), amount0, amount1);
+            });
 
+        (uint256 amount0, uint256 amount1) = positionManager.collect(params);
+
+        //emit FeesCollected(amount0, amount1);
     }
 
 
