@@ -57,10 +57,9 @@ async function main() {
     const tokenName = "SwapCoin";
     const tokenSymbol = "SWAP";
     const tokenSupply = "100";
-    //const totalSupply = "3000";
 
     // Replace this with the address of the deployed factory contract
-    const factoryAddress = "0xb92837d57943dD616cC65633b3C60688FC2b388F";
+    const factoryAddress = "0x3168e66eC3fa850C9B24E5e39890Bc29F6159071";
 
     //SEPOLIA
     const WETH_address = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
@@ -80,7 +79,7 @@ async function main() {
     const provider = ethers.getDefaultProvider(); // Update with your WebSocket provider URL
 
     const tokenAmount = ethers.parseUnits(tokenSupply, 18); // 1,000,000 tokens with 18 decimals
-    const wethAmount = ethers.parseUnits("0.01", 18); // 0.01 WETH
+    const wethAmount = ethers.parseUnits("0.0001", 18); // 0.01 WETH
 
     // Call the deployToken function of the factory contract
     const tx = await factory.deployToken(tokenName, tokenSymbol, tokenSupply);  //DEPLOY
@@ -109,16 +108,8 @@ async function main() {
         token1amount = tokenAmount;
     }
 
-    console.log(`Creating pool with token0: ${token0} and token1: ${token1}, token0amount: ${token0amount}, token1amount: ${token1amount}...`);
-    const poolAddressTx = await factory.createPoolForToken(token0, token1);
-    await poolAddressTx.wait();
-    console.log("Pool created successfully!");
-
-    // Get the PoolCreated event emitted by the factory contract
-    const poolCreatedEvent = await getPoolCreatedEvent(factory, tokenAddress);
-
-    const pool_Address = poolCreatedEvent.args[1];
-    console.log("Pool Address: ",pool_Address);
+    //console.log(`Creating pool with token0: ${token0} and token1: ${token1}, token0amount: ${token0amount}, token1amount: ${token1amount}...`);
+    
 
     // Calculate sqrtPriceX96 considering both tokens have 18 decimals
     const priceRatio = BigInt(token1amount)* BigInt(10 ** 18) / BigInt(token0amount);
@@ -129,9 +120,35 @@ async function main() {
     console.log(`Calculated sqrt price ratio: ${sqrtPriceRatio}`);
     console.log(`Calculated sqrtPriceX96: ${sqrtPriceX96.toString()}`);
 
-    // Initialize the pool
-    const initializeTx = await factory.initializePool(pool_Address, sqrtPriceX96); //INITIALIZE POOL
-    await initializeTx.wait();
+    // Encode the calls
+    const iface = new ethers.Interface([
+        "function createAndInitializePoolIfNecessary(address,address,uint160) external returns (address pool)",
+        "function addInitialLiquidity(address,address,address,uint256,uint256) external"
+    ]);
+
+    const createPoolData = iface.encodeFunctionData("createAndInitializePoolIfNecessary", [token0, token1, sqrtPriceX96]);
+    const addLiquidityData = iface.encodeFunctionData("addInitialLiquidity", [token0, token1, factoryAddress, token0amount, token1amount]);
+
+    // Multicall
+    const tx2 = await factory.multicall([createPoolData, addLiquidityData], {
+        gasLimit: 5100000
+    });
+
+    await tx2.wait();
+
+    console.log("Pool created, initialized, and liquidity added successfully!");
+/*
+    // Create and initialize the pool
+    const createPoolTx = await factory.createAndInitializePoolIfNecessary(token0, token1, sqrtPriceX96);
+    await createPoolTx.wait();
+    console.log("Pool created and initialized successfully!");
+
+    // Get the PoolCreated event emitted by the factory contract
+    const poolCreatedEvent = await getPoolCreatedEvent(factory, tokenAddress);
+
+    const pool_Address = poolCreatedEvent.args[1];
+    console.log("Pool Address: ",pool_Address);
+
 
     console.log("Adding liquidity to the pool...");
     const tx2 = await factory.addInitialLiquidity(token0, token1, factoryAddress, token0amount, token1amount,{
@@ -140,7 +157,7 @@ async function main() {
 
     await tx2.wait();
 
-    console.log("Liquidity added successfully!");
+    console.log("Liquidity added successfully!");*/
 
 }
 

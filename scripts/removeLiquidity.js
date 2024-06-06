@@ -5,8 +5,8 @@ async function main() {
     const [deployer] = await ethers.getSigners();
     console.log("Removing liquidity with the account:", deployer.address);
 
-    const factoryAddress = "0xb92837d57943dD616cC65633b3C60688FC2b388F";
-    const tokenId = 16292; // The token ID of the liquidity position
+    const factoryAddress = "0x1257F013e1e4a63bc3d796B91F36d4e29a726271";
+    const tokenId = 16367; // The token ID of the liquidity position
 
     const Factory = await hre.ethers.getContractFactory("MyFactory");
     const factory = await Factory.attach(factoryAddress);
@@ -29,28 +29,33 @@ async function main() {
     const poolContract = await ethers.getContractAt("IUniswapV3Pool", poolAddress);
     const slot0 = await poolContract.slot0();
     const sqrtPriceX96 = slot0.sqrtPriceX96;
-    const price = ((BigInt(sqrtPriceX96)* (10n ** 9n) / (2n ** 96n))** 2n) ;
+    const price = ((BigInt(sqrtPriceX96))**2n) * (10n ** 18n)/ (2n ** 192n) ;
+    //const price = _price / (10n ** 18n);
 
     console.log(`Pool Address: ${poolAddress}`);
     console.log(`Sqrt Price X96: ${sqrtPriceX96}`);
+    //console.log(`_Price: ${_price}`);
     console.log(`Price: ${price}`);
 
     // Calculate liquidity to remove based on desired amount of WETH
     const wethAmountToRemove = ethers.parseUnits("0.01", 18); // 0.1 WETH
 
     // Calculate the corresponding amount of tokens to remove
-    const tokensToRemove = wethAmountToRemove * price;
+    const tokensToRemove = wethAmountToRemove * (10n ** 18n) / price;
+    console.log("tokensToRemove = ",tokensToRemove);
 
-    // Calculate the liquidity to remove
-    //const liquidityToRemove = sqrt(wethAmountToRemove/price * tokensToRemove);
-
+    // Calculate the liquidity to remove (SQRT)
+    const liquidityToRemove = sqrt(wethAmountToRemove * tokensToRemove);
+    console.log(`Calculated Liquidity to Remove: ${liquidityToRemove.toString()}`);
+    
     // Calculate the corresponding liquidity to remove
-    const liquidityToRemove = calculateLiquidityToRemove(wethAmountToRemove, liquidity, price);
+    //const liquidityToRemove = calculateLiquidityToRemove(wethAmountToRemove, tokensToRemove, sqrtPriceX96, liquidity);
+    //console.log(`Calculated Liquidity to Remove: ${liquidityToRemove.toString()}`);
 
     // Ensure liquidity to remove is not greater than the available liquidity
     //const liquidityToRemoveSafe = liquidityToRemove > liquidity ? liquidity : liquidityToRemove;
 
-    console.log(`Calculated Liquidity to Remove: ${liquidityToRemove.toString()}`);
+    //console.log(`Calculated Liquidity to Remove: ${liquidityToRemove.toString()}`);
     //console.log(`Adjusted Liquidity to Remove (Safe): ${liquidityToRemoveSafe.toString()}`);
 
 
@@ -71,13 +76,10 @@ async function main() {
     return liquidityToRemove;
 }*/
 
-function calculateLiquidityToRemove(ethAmount, totalLiquidity, price) {
-    // Calculate the corresponding liquidity to remove
-    // L = ethAmount / sqrt(price)
-    const sqrtPrice = sqrt(price);
-    const liquidityFraction = (ethAmount * (2n ** 96n)) / sqrtPrice;
-    const liquidityToRemove = (liquidityFraction * totalLiquidity) / (totalLiquidity + liquidityFraction);
-    return liquidityToRemove;
+function calculateLiquidityToRemove(ethAmount, tokenAmount, sqrtPriceX96, totalLiquidity) {
+    const sqrtPrice = sqrt(sqrtPriceX96);
+    const liquidity = (sqrt(ethAmount * tokenAmount) * (2n ** 96n)) / sqrtPrice;
+    return liquidity > totalLiquidity ? totalLiquidity : liquidity;
 }
 
 
