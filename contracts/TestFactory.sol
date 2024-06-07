@@ -31,7 +31,7 @@ contract MyFactory {
     event PoolCreated(address indexed token0, address indexed poolAddress);
     event PoolInitialized(address indexed poolAddress, uint160 sqrtPriceX96);
     event TokenApproved(address indexed tokenAddress, address indexed poolAddress);
-    event LiquidityAdded(address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount);
+    event LiquidityAdded(address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount, uint256 timestamp);
     event LiquidityRemoved(address indexed token, uint256 tokenId, uint256 amount0, uint256 amount1);
     event LiquidityAdditionFailed(address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount, string error);
     event FeesCollected(address indexed token, uint256 amount0, uint256 amount1);
@@ -151,7 +151,7 @@ contract MyFactory {
                 deadline: block.timestamp + 5 minutes
             })
         ) returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) {
-            emit LiquidityAdded(_token0, address(positionManager), _token0Amount, _token1Amount);
+            emit LiquidityAdded(_token0, address(positionManager), _token0Amount, _token1Amount, block.timestamp);
         } catch Error(string memory reason) {
             emit LiquidityAdditionFailed(_token0, address(positionManager), _token0Amount, _token1Amount, reason);
         } catch (bytes memory lowLevelData) {

@@ -131,7 +131,7 @@ async function main() {
 
     // Multicall
     const tx2 = await factory.multicall([createPoolData, addLiquidityData], {
-        gasLimit: 5100000
+        gasLimit: 9000000
     });
 
     await tx2.wait();
