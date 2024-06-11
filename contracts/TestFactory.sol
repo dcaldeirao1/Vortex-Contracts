@@ -20,12 +20,27 @@ contract MyToken is ERC20 {
 }
 
 contract MyFactory {
-    address[] public tokens;
+
     uint256 public tokenCount;
     INonfungiblePositionManager public positionManager;
     address public weth;
     IUniswapV3Factory public uniswapFactory;
-    ISwapRouter public swapRouter; // Add the SwapRouter variable
+    ISwapRouter public swapRouter; 
+    address public owner;
+
+    struct TokenDetails {
+        address tokenAddress;
+        uint256 timeStamp;
+        uint256 tokenId;
+        bool liquidityRemoved;
+        uint256 zerofeedays;
+        bool isTokenDEAD;
+    }
+
+    TokenDetails[] public allTokens;
+
+    mapping(uint256 => uint256) private tokenIndex; // Maps tokenId to index in allTokens array
+
     
     event TokenDeployed(address indexed tokenAddress);
     event PoolCreated(address indexed token0, address indexed poolAddress);
@@ -34,8 +49,15 @@ contract MyFactory {
     event LiquidityAdded(address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount, uint256 timestamp);
     event LiquidityRemoved(address indexed token, uint256 tokenId, uint256 amount0, uint256 amount1);
     event LiquidityAdditionFailed(address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount, string error);
-    event FeesCollected(address indexed token, uint256 amount0, uint256 amount1);
+    event FeesCollected(uint256 tokenId, uint256 amount0, uint256 amount1);
     event SwappedToWETH(address indexed token, uint256 amountIn, uint256 amountOut);
+    event ZeroFeesDays(uint256 tokenId, bool isTokenDead);
+    event ResetFeesDays(uint256 tokenId, bool isTokenDead);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Caller is not the owner");
+        _;
+    }
 
     constructor(address _positionManager, address _weth, address _uniswapFactory, address _swapRouter) {
         positionManager = INonfungiblePositionManager(_positionManager);
@@ -43,6 +65,29 @@ contract MyFactory {
         uniswapFactory = IUniswapV3Factory(_uniswapFactory);
         swapRouter = ISwapRouter(_swapRouter);
     }
+    
+
+
+    // Method to get all token addresses
+    function getAllTokens() public view returns (address[] memory addresses, uint256[] memory tokenIds, uint256[] memory timestamps, bool[] memory liquidityRemovedStatus, uint256[] memory zerofeesdays, bool[] memory isTokenDead) {
+    addresses = new address[](allTokens.length);
+    tokenIds = new uint256[](allTokens.length);
+    timestamps = new uint256[](allTokens.length);
+    liquidityRemovedStatus = new bool[](allTokens.length);
+    zerofeesdays = new uint256[](allTokens.length);
+    isTokenDead = new bool[](allTokens.length);
+
+    for (uint i = 0; i < allTokens.length; i++) {
+        addresses[i] = allTokens[i].tokenAddress;
+        tokenIds[i] = allTokens[i].tokenId;
+        timestamps[i] = allTokens[i].timeStamp;
+        liquidityRemovedStatus[i] = allTokens[i].liquidityRemoved;
+        zerofeesdays[i] = allTokens[i].zerofeedays;
+        isTokenDead[i] = allTokens[i].isTokenDEAD;
+    }
+
+    return (addresses, tokenIds, timestamps, liquidityRemovedStatus, zerofeesdays, isTokenDead);
+}
 
     function deployToken(
         string calldata _name,
@@ -52,8 +97,6 @@ contract MyFactory {
         MyToken token = new MyToken(_name, _symbol, _supply);
         address tokenAddress = address(token);
         
-        tokens.push(tokenAddress);
-        tokenCount++;
         emit TokenDeployed(tokenAddress);
 
         return tokenAddress;
@@ -103,15 +146,6 @@ contract MyFactory {
     }
 
 
-    function tokenExists(address _token) internal view returns (bool) {
-        for (uint256 i = 0; i < tokens.length; i++) {
-            if (tokens[i] == _token) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     // Fallback function to receive Ether
     fallback() external payable {
         // Handle received Ether if necessary
@@ -125,18 +159,20 @@ contract MyFactory {
     function approveToken(address token, address spender, uint256 amount) external {
     require(IERC20(token).approve(spender, amount), "Approval failed");
 }
+
+    // Function to approve another contract or address to manage a specific NFT
+    function approveNFT(address nftAddress, uint256 tokenId, address spender) external {
+        IERC721(nftAddress).approve(spender, tokenId);
+    }
     
 
-    function addInitialLiquidity(address _token0, address _token1, address factory_addy, uint256 _token0Amount, uint256 _token1Amount) external {
+    function addInitialLiquidity(address _token0, address _token1, address tokenAddress, uint256 _token0Amount, uint256 _token1Amount) external returns (uint256 tokenId) {
 
     // Approve the position manager to spend tokens
     TransferHelper.safeApprove(_token0, address(positionManager), _token0Amount);
     TransferHelper.safeApprove(_token1, address(positionManager), _token1Amount);
 
-    // Log the parameters before attempting to mint
-    //emit LiquidityAdded(_token0, _token1, _tokenAmount, _wethAmount);
-
-    try positionManager.mint(
+    INonfungiblePositionManager.MintParams memory params =
             INonfungiblePositionManager.MintParams({
                 token0: _token0,
                 token1: _token1,
@@ -147,40 +183,57 @@ contract MyFactory {
                 amount1Desired: _token1Amount,
                 amount0Min: 0,
                 amount1Min: 0,
-                recipient: factory_addy,
+                recipient: address(this),
                 deadline: block.timestamp + 5 minutes
-            })
-        ) returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) {
-            emit LiquidityAdded(_token0, address(positionManager), _token0Amount, _token1Amount, block.timestamp);
-        } catch Error(string memory reason) {
-            emit LiquidityAdditionFailed(_token0, address(positionManager), _token0Amount, _token1Amount, reason);
-        } catch (bytes memory lowLevelData) {
-            emit LiquidityAdditionFailed(_token0, address(positionManager), _token0Amount, _token1Amount, "Low-level error");
-        }
+            });
+
+        (tokenId,,,) = positionManager.mint(params);
+
+        // Store the token details in the array
+    allTokens.push(TokenDetails({
+        tokenAddress: tokenAddress,  // Storing _token0 as an example, store _token1 similarly if needed
+        tokenId: tokenId,
+        timeStamp: block.timestamp,
+        liquidityRemoved: false,
+        zerofeedays: 0,
+        isTokenDEAD: false
+    }));
+
+    // Save the index of the new token details in the mapping
+    tokenIndex[tokenId] = allTokens.length - 1;
+
+    emit LiquidityAdded(_token0, address(positionManager), _token0Amount, _token1Amount, block.timestamp);
+    return tokenId;
     }
 
 
+function updateNoFeeDays(uint256 tokenId) external { 
 
-    function calculateLiquidityToRemove(uint256 wethAmountToRemove, uint160 sqrtPriceX96, uint128 totalLiquidity) public pure returns (uint128 liquidityToRemove) {
-    require(sqrtPriceX96 > 0, "sqrtPriceX96 is zero");
 
-    // Calculate the price P from sqrtPriceX96
-    uint256 price = uint256(sqrtPriceX96) * uint256(sqrtPriceX96) / (1 << 192);
+    uint256 index = tokenIndex[tokenId]; // Get the index from mapping
+    allTokens[index].zerofeedays++;
 
-    // Ensure price is not zero to avoid division by zero errors
-    require(price > 0, "Price calculation resulted in zero");
+    if (allTokens[index].zerofeedays >= 3){
 
-    // Calculate the corresponding amount of tokens to remove
-    uint256 tokensToRemove = wethAmountToRemove / price;
+        allTokens[index].isTokenDEAD = true;
 
-    // Calculate the liquidity to remove
-    uint256 liquidityToRemoveCalc = sqrt(wethAmountToRemove * tokensToRemove);
+    }
+
+    emit ZeroFeesDays(allTokens[index].zerofeedays, allTokens[index].isTokenDEAD );
     
-    // Cast the calculated liquidity to the required type
-    liquidityToRemove = uint128(liquidityToRemoveCalc);
-
-    return liquidityToRemove;
 }
+
+
+function resetNoFeeDays(uint256 tokenId) external { 
+
+
+    uint256 index = tokenIndex[tokenId]; // Get the index from mapping
+    allTokens[index].zerofeedays=0;
+
+    emit ResetFeesDays(allTokens[index].zerofeedays, allTokens[index].isTokenDEAD );
+    
+}
+
 
 // Babylonian method for calculating the square root
 function sqrt(uint256 y) internal pure returns (uint256 z) {
@@ -197,7 +250,11 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
 }
 
 
-    function removeLiquidity(uint256 tokenId, uint128 liquidityToRemove) external {
+    function removeLiquidity(uint256 tokenId, uint128 liquidityToRemove, address tokenAddress) external {
+
+        uint256 index = tokenIndex[tokenId]; // Get the index from mapping
+        require(!allTokens[index].liquidityRemoved, "Liquidity already removed");
+
         // Decrease liquidity
         (uint256 amount0, uint256 amount1) = positionManager.decreaseLiquidity(
             INonfungiblePositionManager.DecreaseLiquidityParams({
@@ -219,6 +276,7 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
             })
         );
 
+        allTokens[index].liquidityRemoved = true; // Update the liquidity removed status
         emit LiquidityRemoved(msg.sender, tokenId, collectedAmount0, collectedAmount1);
     }
 
@@ -240,54 +298,8 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
     return positionManager.positions(tokenId);
 }
 
-// Function to perform a swap from ETH to token
-    function swapETHForToken(address tokenOut, uint amount_In) external payable returns (uint amountOut) {
-        
-        // Convert ETH to WETH
-        IWETH(weth).deposit{value: amount_In}();
 
-        // Approve the router to spend WETH
-        TransferHelper.safeApprove(weth, address(swapRouter), amount_In);
-
-        ISwapRouter.ExactInputSingleParams memory params =
-            ISwapRouter.ExactInputSingleParams({
-                tokenIn: weth,
-                tokenOut: tokenOut,
-                fee: 10000,
-                recipient: msg.sender,
-                deadline: block.timestamp,
-                amountIn: amount_In,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
-
-        amountOut = swapRouter.exactInputSingle(params);
-    }
-
-
-    function _swapTokenForWETH(address token, uint256 amountIn) internal {
-        //require(IERC20(token).approve(address(swapRouter), amountIn), "Approval failed");
-
-        // Approve the router to spend DAI.
-        TransferHelper.safeApprove(weth, address(swapRouter), amountIn);
-
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
-            tokenIn: token,
-            tokenOut: weth,
-            fee: 10000,
-            recipient: address(this),
-            deadline: block.timestamp + 15,
-            amountIn: amountIn,
-            amountOutMinimum: 0,
-            sqrtPriceLimitX96: 0
-        });
-
-        uint256 amountOut = swapRouter.exactInputSingle(params);
-        emit SwappedToWETH(token, amountIn, amountOut);
-    }
-
-
-function collectFees(uint256 tokenId) external {
+function collectFees(uint256 tokenId) external onlyOwner {
         INonfungiblePositionManager.CollectParams memory params =
             INonfungiblePositionManager.CollectParams({
                 tokenId: tokenId,
@@ -298,27 +310,27 @@ function collectFees(uint256 tokenId) external {
 
         (uint256 amount0, uint256 amount1) = positionManager.collect(params);
 
-        //emit FeesCollected(amount0, amount1);
+        emit FeesCollected(tokenId, amount0, amount1);
     }
 
 
+
+    function checkUncollectedFees(uint256 tokenId) public view returns (uint256, uint256) {
+    (,,,,,,,
+    uint128 liquidity,
+    uint256 feeGrowthInside0LastX128,
+    uint256 feeGrowthInside1LastX128,
+    uint128 tokensOwed0,
+    uint128 tokensOwed1
+    ) = positionManager.positions(tokenId);
+
+    //emit FeeDetails(tokensOwed0, tokensOwed1);
+
+    return (tokensOwed0, tokensOwed1);
 }
 
 
-/*interface ISwapRouter is IUniswapV3SwapCallback {
-    struct ExactInputSingleParams {
-        address tokenIn;
-        address tokenOut;
-        uint24 fee;
-        address recipient;
-        uint256 deadline;
-        uint256 amountIn;
-        uint256 amountOutMinimum;
-        uint160 sqrtPriceLimitX96;
-    }
-
-    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
-}*/
+}
 
 
 interface IWETH {

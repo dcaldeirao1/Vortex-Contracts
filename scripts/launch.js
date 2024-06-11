@@ -54,12 +54,15 @@ async function main() {
     console.log("Interacting with the factory contract using the account:", deployer.address);
 
     // Replace these with your desired token name, symbol, and total supply
-    const tokenName = "SwapCoin";
-    const tokenSymbol = "SWAP";
+    const tokenName = "PoopCoin";
+    const tokenSymbol = "Poop";
     const tokenSupply = "100";
 
     // Replace this with the address of the deployed factory contract
-    const factoryAddress = "0x3168e66eC3fa850C9B24E5e39890Bc29F6159071";
+    const factoryAddress = "0x48419ba6b356065f13df1B3d000e8cd3105Cb7d9";
+
+    const lockerAddress = '0xc4d1Fad3e2f86ec002368E79f88C68B2aE03d18b';
+    const nftAddress = '0x1238536071E1c677A632429e3655c799b22cDA52';
 
     //SEPOLIA
     const WETH_address = "0xfff9976782d46cc05630d1f6ebab18b2324d6b14";
@@ -67,9 +70,6 @@ async function main() {
     //BASE
   /*  const WETH_address = "0x4200000000000000000000000000000000000006";
     */
-
-    //const tokenAddress = "0x90950111fcfF15474c670aA44890561F9624866C";
-    //const pool_Address = "0xc28FE4D9ecd71A3B71FF469cE4C23671cd6dc180";
     
     // Connect to the factory contract using its ABI and address
     const Factory = await ethers.getContractFactory("MyFactory");
@@ -115,28 +115,30 @@ async function main() {
     const priceRatio = BigInt(token1amount)* BigInt(10 ** 18) / BigInt(token0amount);
     const sqrtPriceRatio = sqrt(priceRatio);
     const sqrtPriceX96 = (sqrtPriceRatio * (2n ** 96n)) / (10n ** 9n); // Scale to 2^96
-    //const sqrtPriceX96 = sqrtPriceRatio * BigInt(2 ** 96)/BigInt(10 ** 9);
-    console.log(`Calculated price ratio: ${priceRatio}`);
-    console.log(`Calculated sqrt price ratio: ${sqrtPriceRatio}`);
+    //console.log(`Calculated price ratio: ${priceRatio}`);
+    //console.log(`Calculated sqrt price ratio: ${sqrtPriceRatio}`);
     console.log(`Calculated sqrtPriceX96: ${sqrtPriceX96.toString()}`);
 
     // Encode the calls
     const iface = new ethers.Interface([
         "function createAndInitializePoolIfNecessary(address,address,uint160) external returns (address pool)",
         "function addInitialLiquidity(address,address,address,uint256,uint256) external"
+        //"function lockLiquidity(address, uint256, uint256) external"
     ]);
 
     const createPoolData = iface.encodeFunctionData("createAndInitializePoolIfNecessary", [token0, token1, sqrtPriceX96]);
-    const addLiquidityData = iface.encodeFunctionData("addInitialLiquidity", [token0, token1, factoryAddress, token0amount, token1amount]);
+    const addLiquidityData = iface.encodeFunctionData("addInitialLiquidity", [token0, token1, tokenAddress, token0amount, token1amount]);
+    //const lockLiquidityData = iface.encodeFunctionData("lockLiquidity", [nftAddress, tokenId, duration]);
 
     // Multicall
     const tx2 = await factory.multicall([createPoolData, addLiquidityData], {
         gasLimit: 9000000
     });
 
-    await tx2.wait();
+    const receipt2 = await tx2.wait();
+    //console.log("receipt:" , receipt2);
 
-    console.log("Pool created, initialized, and liquidity added successfully!");
+    console.log("Multi-call successful!");
 /*
     // Create and initialize the pool
     const createPoolTx = await factory.createAndInitializePoolIfNecessary(token0, token1, sqrtPriceX96);

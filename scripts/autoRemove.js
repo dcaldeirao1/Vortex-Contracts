@@ -5,15 +5,36 @@ async function main() {
     const [deployer] = await ethers.getSigners();
     console.log("Removing liquidity with the account:", deployer.address);
 
-    const factoryAddress = "0xBbeAA4DE58D1E863340d7C770C1fb150CA456Da5";
-    const tokenAddress = "0x25C600819aa2313DcEa2b693253111C566740175";
-    const tokenId = 16525; // The token ID of the liquidity position
+    const factoryAddress = "0xf57525B199D0ACF55d15173c0B1DD8D34414F28e";
+    //const tokenId = 16430; // The token ID of the liquidity position
 
     const Factory = await hre.ethers.getContractFactory("MyFactory");
     const factory = await Factory.attach(factoryAddress);
 
+    // Fetch all tokens and their timestamps
+    const [addresses, tokenIds, timestamps, liquidityRemovedStatus] = await factory.getAllTokens();
+
+    // Current time in seconds since UNIX epoch
+    const currentTime = Math.floor(Date.now() / 1000);
+
+    // Print results
+    console.log("Addresses:", addresses);
+    console.log("Token IDs:", tokenIds);
+    console.log("Timestamps:", timestamps);
+    console.log("liquidityRemovedStatus:", liquidityRemovedStatus);
+
+    // Loop through all tokens to check their launch time
+    for (let i = 0; i < addresses.length; i++) {
+        const launchTime = Number(timestamps[i]);
+        const oneHourAgo = currentTime - 36; // 3600 seconds = 1 hour
+
+        // Check if the token was launched more than an hour ago and if liq has not been removed yet !details.liquidityRemoved &&
+        if ( (launchTime < oneHourAgo) && (!liquidityRemovedStatus[i])  ) {
+            console.log(`Removing liquidity for token at address ${addresses[i]} with token ID ${tokenIds[i]}`);
+            
+
     // Fetch the position details
-    const position = await factory.getPosition(tokenId);
+    const position = await factory.getPosition(tokenIds[i]);
     const liquidity = position.liquidity;
     const token0 = position.token0;
     const token1 = position.token1;
@@ -53,14 +74,19 @@ async function main() {
     const liquidityToRemoveSafe = liquidityToRemove > liquidity ? liquidity : liquidityToRemove;
 
      // Remove liquidity
-     const tx = await factory.removeLiquidity(tokenId, liquidityToRemoveSafe, tokenAddress);
+     const tx = await factory.removeLiquidity(tokenIds[i], liquidityToRemoveSafe, addresses[i]);
      const receipt = await tx.wait();
  
 
     console.log("Liquidity removed successfully!");
-    console.log("Receipt:", receipt);
+    //console.log("Receipt:", receipt); 
+    
+    } else {
+            console.log(`Token at address ${addresses[i]} with token ID ${tokenIds[i]} is not old enough or liquidity has already been removed.`);
+        }
 }
 
+}
 
 
 

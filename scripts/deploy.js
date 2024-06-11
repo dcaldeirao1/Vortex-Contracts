@@ -3,15 +3,15 @@ async function main() {
   
     console.log("Deploying contracts with the account:", deployer.address);
   
-    const MyToken = await ethers.getContractFactory("MyToken");
-    const myTokenDeployment = await MyToken.deploy("Hipopotamus", "HIPO", 420);
+    const MyLocker = await ethers.getContractFactory("LiquidityLocker");
+    const MyLockerDeployment = await MyLocker.deploy();
   
-    if (myTokenDeployment) {
+    if (MyLockerDeployment) {
       // If successful, print contract address
-      console.log("MyToken address:", myTokenDeployment.target);
+      console.log("MyLocker address:", MyLockerDeployment.target);
   } else {
       // If unsuccessful, log an error
-      console.error("MyToken deployment failed");
+      console.error("MyLocker deployment failed");
       return; // Exit the function
   }
     //SEPOLIA
