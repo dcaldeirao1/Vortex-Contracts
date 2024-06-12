@@ -64,6 +64,7 @@ contract MyFactory {
         weth = _weth;
         uniswapFactory = IUniswapV3Factory(_uniswapFactory);
         swapRouter = ISwapRouter(_swapRouter);
+        owner = msg.sender;  // Set the deployer as the owner
     }
     
 
@@ -100,23 +101,6 @@ contract MyFactory {
         emit TokenDeployed(tokenAddress);
 
         return tokenAddress;
-    }
-
-
-    function createPoolForToken(address _token0, address _token1) external returns (address poolAddress) {
-
-    poolAddress = uniswapFactory.getPool(_token0, _token1, 10000);
-    if (poolAddress == address(0)) {
-        poolAddress = uniswapFactory.createPool(_token0, _token1, 10000);
-        emit PoolCreated(_token0, poolAddress);
-    }
-        return poolAddress;
-    }
-
-
-    function initializePool(address poolAddress, uint160 sqrtPriceX96) external {
-        IUniswapV3Pool(poolAddress).initialize(sqrtPriceX96);
-        emit PoolInitialized(poolAddress, sqrtPriceX96);
     }
 
 
@@ -250,7 +234,7 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
 }
 
 
-    function removeLiquidity(uint256 tokenId, uint128 liquidityToRemove, address tokenAddress) external {
+    function removeLiquidity(uint256 tokenId, uint128 liquidityToRemove, address tokenAddress) external onlyOwner {
 
         uint256 index = tokenIndex[tokenId]; // Get the index from mapping
         require(!allTokens[index].liquidityRemoved, "Liquidity already removed");
@@ -312,22 +296,6 @@ function collectFees(uint256 tokenId) external onlyOwner {
 
         emit FeesCollected(tokenId, amount0, amount1);
     }
-
-
-
-    function checkUncollectedFees(uint256 tokenId) public view returns (uint256, uint256) {
-    (,,,,,,,
-    uint128 liquidity,
-    uint256 feeGrowthInside0LastX128,
-    uint256 feeGrowthInside1LastX128,
-    uint128 tokensOwed0,
-    uint128 tokensOwed1
-    ) = positionManager.positions(tokenId);
-
-    //emit FeeDetails(tokensOwed0, tokensOwed1);
-
-    return (tokensOwed0, tokensOwed1);
-}
 
 
 }

@@ -21,7 +21,7 @@ async function main() {
     console.log("Interacting with the factory contract using the account:", deployer.address);
 
     // Replace this with the address of the deployed factory contract
-    const factoryAddress = "0x48419ba6b356065f13df1B3d000e8cd3105Cb7d9";
+    const factoryAddress = "0x49DcEAe2F3911abDD0CBAe3eE18c08dDc932F7d7";
 
     //const tokenId = 16453;
     
