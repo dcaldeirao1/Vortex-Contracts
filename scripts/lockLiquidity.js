@@ -46,7 +46,7 @@ async function main() {
     await approvalTx.wait();
     console.log("Approval successful!"); */ 
 
-   /*  // Approve the locker to manage the NFT
+    // Approve the locker to manage the NFT
     console.log("Approving LiquidityLocker to manage the factory NFT...");
     const approveTx = await factory.approveNFT(nftAddress, tokenId, lockerAddress);
     await approveTx.wait();
@@ -67,9 +67,9 @@ async function main() {
     const liquidityLockedEvent = await getLiquidityLockedEvent(locker);
 
     const lockId = liquidityLockedEvent.args[0];
-    console.log("lockId: ",lockId); */
+    console.log("lockId: ",lockId);
 
-    const lockId = 0;
+    /* const lockId = 0;
     
     // Unlock the liquidity
     console.log("Unlocking liquidity...");
@@ -77,7 +77,7 @@ async function main() {
     const unlockLiquidityTx = await locker.unlockLiquidity(lockId, factoryAddress);
     await unlockLiquidityTx.wait();
 
-    console.log("Liquidity unlocked");
+    console.log("Liquidity unlocked"); */
 
 }
 

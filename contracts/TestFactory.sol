@@ -9,9 +9,6 @@ import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "contracts/Staking.sol";
 //import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-//import "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
-
-
 
 
 contract MyToken is ERC20 {
@@ -29,6 +26,7 @@ contract MyFactory {
     ISwapRouter public swapRouter; 
     address public owner;
     address payable public stakingAddress;
+    uint256 wethProvided = 0.0001 ether;
 
     struct TokenDetails {
         address tokenAddress;
@@ -48,7 +46,7 @@ contract MyFactory {
     event PoolCreated(address indexed token0, address indexed poolAddress);
     event PoolInitialized(address indexed poolAddress, uint160 sqrtPriceX96);
     event TokenApproved(address indexed tokenAddress, address indexed poolAddress);
-    event LiquidityAdded(address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount, uint256 timestamp);
+    event LiquidityAdded(uint256 tokenId, address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount);
     event LiquidityRemoved(address indexed token, uint256 tokenId, uint256 amount0, uint256 amount1);
     event LiquidityAdditionFailed(address indexed token, address indexed pool, uint256 tokenAmount, uint256 wethAmount, string error);
     event FeesCollected(uint256 tokenId, uint256 amount0, uint256 amount1);
@@ -74,7 +72,7 @@ contract MyFactory {
 
 
     // Method to get all token addresses
-    function getAllTokens() public view returns (address[] memory addresses, uint256[] memory tokenIds, uint256[] memory timestamps, bool[] memory liquidityRemovedStatus, uint256[] memory zerofeesdays, bool[] memory isTokenDead) {
+    function getAllTokens() public view onlyOwner returns (address[] memory addresses, uint256[] memory tokenIds, uint256[] memory timestamps, bool[] memory liquidityRemovedStatus, uint256[] memory zerofeesdays, bool[] memory isTokenDead) {
     addresses = new address[](allTokens.length);
     tokenIds = new uint256[](allTokens.length);
     timestamps = new uint256[](allTokens.length);
@@ -94,11 +92,8 @@ contract MyFactory {
     return (addresses, tokenIds, timestamps, liquidityRemovedStatus, zerofeesdays, isTokenDead);
 }
 
-    function deployToken(
-        string calldata _name,
-        string calldata _symbol,
-        uint256 _supply
-    ) external returns (address) {
+    function deployToken( string calldata _name, string calldata _symbol, uint256 _supply) external returns (address) {
+
         MyToken token = new MyToken(_name, _symbol, _supply);
         address tokenAddress = address(token);
         
@@ -209,11 +204,12 @@ contract MyFactory {
 
         // The call to `exactInputSingle` executes the swap.
         amountOut = swapRouter.exactInputSingle{ value: msg.value }(params);
+        emit TokensSwapped(amountOut);
 
         return amountOut;
     }
 
-    function swapTokensForWETH(uint256 amountIn, address tokenAddress) external onlyOwner returns (uint256 amountOut) {
+    function swapTokensForWETH(uint256 amountIn, address tokenAddress) external payable onlyOwner returns (uint256 amountOut) {
         
         require(amountIn > 0, "Amount must be greater than zero");
 
@@ -236,7 +232,7 @@ contract MyFactory {
                 sqrtPriceLimitX96: 0
             });
 
-        amountOut = swapRouter.exactInputSingle(params);
+        amountOut = swapRouter.exactInputSingle{ value: msg.value }(params);
         emit TokensSwapped(amountOut);
         return amountOut;
     }
@@ -246,7 +242,11 @@ contract MyFactory {
 
     function addInitialLiquidity(address _token0, address _token1, address tokenAddress, uint256 _token0Amount, uint256 _token1Amount) external returns (uint256 tokenId) {
 
-        // add require factory to have enough eth
+     // Check if the factory contract has enough WETH
+    uint256 wethBalance = IERC20(weth).balanceOf(address(this));
+    require(wethBalance >= wethProvided, "Not enough WETH in the factory contract");
+
+
     // Approve the position manager to spend tokens
     TransferHelper.safeApprove(_token0, address(positionManager), _token0Amount);
     TransferHelper.safeApprove(_token1, address(positionManager), _token1Amount);
@@ -281,12 +281,12 @@ contract MyFactory {
     // Save the index of the new token details in the mapping
     tokenIndex[tokenId] = allTokens.length - 1;
 
-    emit LiquidityAdded(_token0, address(positionManager), _token0Amount, _token1Amount, block.timestamp);
+    emit LiquidityAdded(tokenId , _token0, _token1, _token0Amount, _token1Amount);
     return tokenId;
     }
 
 
-function updateNoFeeDays(uint256 tokenId) external { 
+function updateNoFeeDays(uint256 tokenId) external onlyOwner { 
 
 
     uint256 index = tokenIndex[tokenId]; // Get the index from mapping
@@ -303,7 +303,7 @@ function updateNoFeeDays(uint256 tokenId) external {
 }
 
 
-function resetNoFeeDays(uint256 tokenId) external { 
+function resetNoFeeDays(uint256 tokenId) external onlyOwner { 
 
 
     uint256 index = tokenIndex[tokenId]; // Get the index from mapping
@@ -363,7 +363,7 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
     }
 
 
-    function getPosition(uint256 tokenId) external view returns (
+    function getPosition(uint256 tokenId) external view onlyOwner returns (
     uint96 nonce,
     address operator,
     address token0,

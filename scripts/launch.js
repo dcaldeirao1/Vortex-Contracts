@@ -12,6 +12,32 @@ async function getTokenDeployedEvent(token) {
     return tokenDeployedEvent;
 }
 
+async function getTokenIdEvent(token) {
+    // Get the filter for the TokenDeployed event
+    const filter = token.filters.LiquidityAdded();
+
+    // Query the filter for events emitted by the token contract
+    const events = await token.queryFilter(filter);
+
+    // Find the TokenDeployed event emitted by the token contract
+    const tokenDeployedEvent = events[events.length - 1]; // Get the latest event
+
+    return tokenDeployedEvent;
+}
+
+async function getTokensSwappedEvent(factory) {
+    // Get the filter for the TokenDeployed event
+    const filter = factory.filters.TokensSwapped();
+
+    // Query the filter for events emitted by the token contract
+    const events = await factory.queryFilter(filter);
+
+    // Find the TokenDeployed event emitted by the token contract
+    const tokensSwappedEvent = events[events.length - 1]; // Get the latest event
+
+    return tokensSwappedEvent;
+}
+
 
 // Babylonian method for square root calculation using BigInt
 function sqrt(value) {
@@ -40,7 +66,7 @@ async function main() {
     const tokenSupply = "100";
 
     // Replace this with the address of the deployed factory contract
-    const factoryAddress = "0x75085f466Eb0a88a3faF8E6E8eBcD19348726a4f";
+    const factoryAddress = "0x8131B03Cf7a5cfaaD0085D515C81D71c4320FBdB";
 
     const swapRouterAddress = "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E";
     const abi = require('../scripts/swapRouterABI.json');
@@ -54,6 +80,12 @@ async function main() {
     // Connect to the factory contract using its ABI and address
     const Factory = await ethers.getContractFactory("MyFactory");
     const factory = await Factory.attach(factoryAddress);
+
+    const LiquidityLocker = await ethers.getContractFactory("LiquidityLocker");
+    const locker = await LiquidityLocker.attach(lockerAddress);
+
+    // Connect to the NFT contract
+    const NFT = await ethers.getContractAt("IERC721", nftAddress, deployer);
 
     const tokenAmount = ethers.parseUnits(tokenSupply, 18); // 1,000,000 tokens with 18 decimals
     const wethAmount = ethers.parseUnits("0.0001", 18); // 0.01 WETH
@@ -121,6 +153,17 @@ async function main() {
     receipt = await tx1.wait();
     console.log("Swap performed successfully!");
 
+    const tokensSwappedEvent = await getTokensSwappedEvent(factory);
+
+    const tokensReceived = tokensSwappedEvent.args[0];
+    const formattedTokens = ethers.formatUnits(tokensReceived, 18);
+    console.log("Tokens received: ",formattedTokens);
+
+    const tokenIdEvent = await getTokenIdEvent(factory);
+    const tokenId = tokenIdEvent.args[0];
+    console.log("tokenId: ",tokenId);
+
+
 
 }
 
@@ -128,5 +171,6 @@ main()
     .then(() => process.exit(0))
     .catch((error) => {
         console.error(error);
+        console.log("Not enough weth on the factory contract");
         process.exit(1);
     });
