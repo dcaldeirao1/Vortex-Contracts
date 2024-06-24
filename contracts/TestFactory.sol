@@ -7,7 +7,8 @@ import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.s
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
-import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import "contracts/Staking.sol";
+//import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 //import "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 
 
@@ -27,6 +28,7 @@ contract MyFactory {
     IUniswapV3Factory public uniswapFactory;
     ISwapRouter public swapRouter; 
     address public owner;
+    address payable public stakingAddress;
 
     struct TokenDetails {
         address tokenAddress;
@@ -53,6 +55,8 @@ contract MyFactory {
     event SwappedToWETH(address indexed token, uint256 amountIn, uint256 amountOut);
     event ZeroFeesDays(uint256 tokenId, bool isTokenDead);
     event ResetFeesDays(uint256 tokenId, bool isTokenDead);
+    event TokensSwapped(uint256 amount);
+    
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Caller is not the owner");
@@ -104,12 +108,20 @@ contract MyFactory {
     }
 
 
-    function multicall(bytes[] calldata data) external payable returns (bytes[] memory results) {
+    /* function multicall(bytes[] calldata data) external payable returns (bytes[] memory results) {
         results = new bytes[](data.length);
         for (uint i = 0; i < data.length; i++) {
             (bool success, bytes memory result) = address(this).delegatecall(data[i]);
             require(success, "Transaction failed");
             results[i] = result;
+        }
+    } */
+
+
+   function multicall(bytes[] calldata data) external payable {
+        for (uint256 i = 0; i < data.length; i++) {
+            (bool success, ) = address(this).call{value: i == data.length - 1 ? msg.value : 0}(data[i]);
+            require(success, "Multicall execution failed");
         }
     }
 
@@ -140,7 +152,7 @@ contract MyFactory {
         // Handle received Ether
     }
 
-    function approveToken(address token, address spender, uint256 amount) external {
+    function approveToken(address token, address spender, uint256 amount) internal onlyOwner {
     require(IERC20(token).approve(spender, amount), "Approval failed");
 }
 
@@ -148,10 +160,93 @@ contract MyFactory {
     function approveNFT(address nftAddress, uint256 tokenId, address spender) external {
         IERC721(nftAddress).approve(spender, tokenId);
     }
+
+
+    function setStakingAddress(address payable _stakingAddress) external onlyOwner {
+        stakingAddress = _stakingAddress;
+    }
+
+    function callAddRewards (uint256 amount ) external payable onlyOwner {
+
+        //require(msg.value > 0, "No rewards to add bro");
+        approveToken(weth, stakingAddress, amount);
+
+        SimpleStaking(stakingAddress).addRewards{value: amount}();
+        
+    }
+
+
+    // Function to transfer tokens from the factory contract to a specified wallet
+    function transferTokens(address tokenAddress, address to, uint256 amount) external onlyOwner {
+        require(amount > 0, "Amount must be greater than zero");
+
+        // Transfer tokens to the specified address
+        IERC20(tokenAddress).transfer(to, amount);
+
+    }
+
+
+    function convertWETHToETH(uint256 amount) external onlyOwner {
+        IWETH(weth).withdraw(amount);
+    }
+    
+
+    function swapETHforTokens (uint256 amountIn, address tokenAddress) external payable returns (uint256 amountOut) {
+
+        // Approve the swap router to spend tokens
+        approveToken(weth, address(swapRouter), amountIn);
+
+        ISwapRouter.ExactInputSingleParams memory params =
+            ISwapRouter.ExactInputSingleParams({
+                tokenIn: weth,
+                tokenOut: tokenAddress,
+                fee: 10000,
+                recipient: msg.sender,
+                amountIn: amountIn,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            });
+
+        // The call to `exactInputSingle` executes the swap.
+        amountOut = swapRouter.exactInputSingle{ value: msg.value }(params);
+
+        return amountOut;
+    }
+
+    function swapTokensForWETH(uint256 amountIn, address tokenAddress) external onlyOwner returns (uint256 amountOut) {
+        
+        require(amountIn > 0, "Amount must be greater than zero");
+
+        IERC20 token = IERC20(tokenAddress);
+
+        uint256 factoryBalance = token.balanceOf(address(this));
+        require(factoryBalance >= amountIn, "Insufficient token balance in the factory contract");
+
+        // Approve the swap router to spend tokens
+        approveToken(tokenAddress, address(swapRouter), amountIn);
+
+        ISwapRouter.ExactInputSingleParams memory params =
+            ISwapRouter.ExactInputSingleParams({
+                tokenIn: tokenAddress,
+                tokenOut: weth,
+                fee: 10000,
+                recipient: address(this),
+                amountIn: amountIn,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0
+            });
+
+        amountOut = swapRouter.exactInputSingle(params);
+        emit TokensSwapped(amountOut);
+        return amountOut;
+    }
+
+    
     
 
     function addInitialLiquidity(address _token0, address _token1, address tokenAddress, uint256 _token0Amount, uint256 _token1Amount) external returns (uint256 tokenId) {
 
+        // add require factory to have enough eth
     // Approve the position manager to spend tokens
     TransferHelper.safeApprove(_token0, address(positionManager), _token0Amount);
     TransferHelper.safeApprove(_token1, address(positionManager), _token1Amount);
@@ -234,13 +329,13 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
 }
 
 
-    function removeLiquidity(uint256 tokenId, uint128 liquidityToRemove, address tokenAddress) external onlyOwner {
+    function removeLiquidity(uint256 tokenId, uint128 liquidityToRemove) external onlyOwner {
 
         uint256 index = tokenIndex[tokenId]; // Get the index from mapping
         require(!allTokens[index].liquidityRemoved, "Liquidity already removed");
 
         // Decrease liquidity
-        (uint256 amount0, uint256 amount1) = positionManager.decreaseLiquidity(
+        positionManager.decreaseLiquidity(
             INonfungiblePositionManager.DecreaseLiquidityParams({
                 tokenId: tokenId,
                 liquidity: liquidityToRemove,
@@ -248,6 +343,8 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
                 amount1Min: 0,
                 deadline: block.timestamp
             })
+
+            
         );
 
         // Collect the tokens from the position
@@ -262,6 +359,7 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
 
         allTokens[index].liquidityRemoved = true; // Update the liquidity removed status
         emit LiquidityRemoved(msg.sender, tokenId, collectedAmount0, collectedAmount1);
+         
     }
 
 
@@ -295,13 +393,33 @@ function collectFees(uint256 tokenId) external onlyOwner {
         (uint256 amount0, uint256 amount1) = positionManager.collect(params);
 
         emit FeesCollected(tokenId, amount0, amount1);
+
+        
     }
 
 
 }
 
 
-interface IWETH {
+interface ISwapRouter {
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
+
+    /// @notice Swaps `amountIn` of one token for as much as possible of another token
+    /// @param params The parameters necessary for the swap, encoded as `ExactInputSingleParams` in calldata
+    /// @return amountOut The amount of the received token
+    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
+}
+
+
+/* interface IWETH {
     function deposit() external payable;
     function deposit(uint256 amount) external payable;
     function withdraw(uint256 amount) external;
@@ -310,4 +428,4 @@ interface IWETH {
     function transferFrom(address from, address to, uint256 value) external returns (bool);
     function balanceOf(address owner) external view returns (uint256);
     function allowance(address owner, address spender) external view returns (uint256);
-}
+} */

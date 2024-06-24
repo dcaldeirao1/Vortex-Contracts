@@ -23,8 +23,8 @@ async function main() {
     console.log("Using the account:", deployer.address);
 
     // Addresses of the deployed contracts
-    const factoryAddress = '0x81f155Fc589a2Fc6229a110312FEf0fD35864DAb';
-    const lockerAddress = '0x3d334C579dDff4ffB4efC3C560CE4dEc2E72cc58';
+    const factoryAddress = '0x6850d7caFf7C72e4c61a0E53ced55c35f8B1E4Ff';
+    const lockerAddress = '0xD02Dc7572201f6b622E9F010A90EC73D8ab11011';
     const nftAddress = '0x1238536071E1c677A632429e3655c799b22cDA52'; // This would be dynamically obtained after adding liquidity
 
     // Connect to the contracts
@@ -35,7 +35,7 @@ async function main() {
     const locker = await LiquidityLocker.attach(lockerAddress);
 
     // Retrieve the token ID from the event (assuming your factory emits an event with the token ID)
-    const tokenId = 16538;
+    const tokenId = 16697;
 
     // Connect to the NFT contract
     const NFT = await ethers.getContractAt("IERC721", nftAddress, deployer);
@@ -46,7 +46,7 @@ async function main() {
     await approvalTx.wait();
     console.log("Approval successful!"); */ 
 
-    /* // Approve the locker to manage the NFT
+   /*  // Approve the locker to manage the NFT
     console.log("Approving LiquidityLocker to manage the factory NFT...");
     const approveTx = await factory.approveNFT(nftAddress, tokenId, lockerAddress);
     await approveTx.wait();
@@ -69,7 +69,7 @@ async function main() {
     const lockId = liquidityLockedEvent.args[0];
     console.log("lockId: ",lockId); */
 
-    const lockId = 1;
+    const lockId = 0;
     
     // Unlock the liquidity
     console.log("Unlocking liquidity...");

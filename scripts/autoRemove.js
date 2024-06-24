@@ -5,7 +5,7 @@ async function main() {
     const [deployer] = await ethers.getSigners();
     console.log("Removing liquidity with the account:", deployer.address);
 
-    const factoryAddress = "0xf57525B199D0ACF55d15173c0B1DD8D34414F28e";
+    const factoryAddress = "0x5AC87B7D4Fb2F29FfE6aE9320e878C5607d261eb";
     //const tokenId = 16430; // The token ID of the liquidity position
 
     const Factory = await hre.ethers.getContractFactory("MyFactory");
@@ -74,7 +74,7 @@ async function main() {
     const liquidityToRemoveSafe = liquidityToRemove > liquidity ? liquidity : liquidityToRemove;
 
      // Remove liquidity
-     const tx = await factory.removeLiquidity(tokenIds[i], liquidityToRemoveSafe, addresses[i]);
+     const tx = await factory.removeLiquidity(tokenIds[i], liquidityToRemoveSafe);
      const receipt = await tx.wait();
  
 
