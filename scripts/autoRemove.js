@@ -1,13 +1,28 @@
 const hre = require("hardhat");
 const { ethers } = hre;
 
+async function getLatestEvent(token, eventname) {
+  // Get the filter for the specified event
+  const filter = token.filters[eventname]();
+
+  // Query the filter for events emitted by the contract
+  const events = await token.queryFilter(filter);
+
+  //console.log("Events: ", events);
+
+  // Find the latest event
+  const latestEvent = events[events.length - 1]; // Get the latest event
+
+  return latestEvent;
+}
+
 async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Removing liquidity with the account:", deployer.address);
 
-  const factoryAddress = "0xa7F161c35F3439808eba24a235e5ce7bd3c9271A";
+  const factoryAddress = "0xC1e8b127C08aDA6B5c7FfCB237870c304BCd5508";
 
-  const lockerAddress = "0x019D372c98352c03162D363dE6b549e0F6a589c3";
+  const lockerAddress = "0x4ee875d1cd3DC0151332d54c13055A7f69c350Fd";
 
   const position_manager = process.env.SEPOLIA_POSITION_MANAGER;
 
@@ -17,53 +32,58 @@ async function main() {
   const LiquidityLocker = await ethers.getContractFactory("LiquidityLocker");
   const locker = await LiquidityLocker.attach(lockerAddress);
 
-  // Fetch all tokens and their timestamps
-  const [addresses, tokenIds, timestamps, liquidityRemovedStatus] =
-    await factory.getAllTokens();
+  const [
+    addresses,
+    tokenIds,
+    timestamps,
+    liquidityRemovedStatus,
+    zeroFeesDays,
+    istokenDEAD,
+    lastFee,
+    lockID,
+    isLocked,
+    unlockTime,
+  ] = await factory.getAllTokens();
 
-  const [_tokenId, _isLocked, _lockID, _unlockTime] =
-    await locker.getAllTokens();
-
-  // Current time in seconds since UNIX epoch
-  const currentTime = Math.floor(Date.now() / 1000);
+  //const [_tokenId, _isLocked, _lockID, _unlockTime] = await locker.getAllTokens();
 
   // Print results
   console.log("Addresses:", addresses);
   console.log("Token IDs:", tokenIds);
   console.log("Timestamps:", timestamps);
   console.log("liquidityRemovedStatus:", liquidityRemovedStatus);
+  console.log("lockID:", lockID);
+  console.log("isLocked:", isLocked);
+  console.log("unlockTime:", unlockTime);
 
   // Print results
-  console.log("Token IDs:", _tokenId);
+  /* console.log("Token IDs:", _tokenId);
   console.log("isLocked:", _isLocked);
   console.log("Lock ID:", _lockID);
-  console.log("Unlock Time:", _unlockTime);
+  console.log("Unlock Time:", _unlockTime); */
+
+  const currentTime = Math.floor(Date.now() / 1000); // current time in seconds since Unix epoch
 
   // Loop through all tokens to check their launch time
   for (let i = 0; i < addresses.length; i++) {
-    const launchTime = Number(timestamps[i]);
-    const oneHourAgo = currentTime - 36; // 3600 seconds = 1 hour, 1 week = 3600 * 24 * 7;
+    // Check if the token's initial liquidity has already been removed
 
-    // Check if the token was launched more than an hour ago and if liq has not been removed yet
-    if (
-      launchTime < oneHourAgo &&
-      !liquidityRemovedStatus[i]
-      //_isLocked[i] == false
-    ) {
-      if (_isLocked[i] == true && currentTime > _unlockTime[i]) {
-        // and currentTime >_unlockTime[i]
+    if (!liquidityRemovedStatus[i] && currentTime > unlockTime[i]) {
+      // Unlock the liquidity
+      console.log("Unlocking liquidity...");
+      //const duration = 3600 * 24 * 7; // 1 week in seconds
+      const unlockLiquidityTx = await locker.unlockLiquidity(
+        lockID[i],
+        factoryAddress
+      );
+      await unlockLiquidityTx.wait();
 
-        // Unlock the liquidity
-        console.log("Unlocking liquidity...");
-        //const duration = 3600 * 24 * 7; // 1 week in seconds
-        const unlockLiquidityTx = await locker.unlockLiquidity(
-          _lockID[i],
-          factoryAddress
-        );
-        await unlockLiquidityTx.wait();
+      console.log("Liquidity unlocked");
 
-        console.log("Liquidity unlocked");
-      }
+      // store the lockId for each token
+      console.log("Storing lock details...");
+      const txxx = await factory.storeLockID(tokenIds[i], lockID[i], false, 0);
+      await txxx.wait();
 
       console.log(
         `Removing liquidity for token at address ${addresses[i]} with token ID ${tokenIds[i]}`
@@ -75,10 +95,10 @@ async function main() {
       const token0 = position.token0;
       const token1 = position.token1;
 
-      console.log(`Position Details:`, position);
+      /* console.log(`Position Details:`, position);
       console.log("token0 = ", token0);
       console.log("token1 = ", token1);
-      console.log("Liquidity = ", liquidity);
+      console.log("Liquidity = ", liquidity); */
 
       // Determine the correct pool address
       const poolAddress = await factory.get_Pool(token0, token1, 10000);
@@ -93,9 +113,9 @@ async function main() {
       const price = (BigInt(sqrtPriceX96) ** 2n * 10n ** 18n) / 2n ** 192n;
       //const price = _price / (10n ** 18n);
 
-      console.log(`Pool Address: ${poolAddress}`);
+      /* console.log(`Pool Address: ${poolAddress}`);
       console.log(`Sqrt Price X96: ${sqrtPriceX96}`);
-      console.log(`Price: ${price}`);
+      console.log(`Price: ${price}`); */
 
       // Calculate liquidity to remove based on desired amount of WETH
       const wethAmountToRemove = ethers.parseUnits("0.0001", 18); // 0.1 WETH
@@ -106,9 +126,7 @@ async function main() {
 
       // Calculate the liquidity to remove (SQRT)
       const liquidityToRemove = sqrt(wethAmountToRemove * tokensToRemove);
-      console.log(
-        `Calculated Liquidity to Remove: ${liquidityToRemove.toString()}`
-      );
+      //console.log( `Calculated Liquidity to Remove: ${liquidityToRemove.toString()}` );
 
       // Ensure liquidity to remove is not greater than the available liquidity
       const liquidityToRemoveSafe =
@@ -119,24 +137,20 @@ async function main() {
         tokenIds[i],
         liquidityToRemoveSafe
       );
-      const receipt = await tx.wait();
+
+      await tx.wait();
 
       console.log("Initial liquidity removed successfully!");
 
       // Approve the locker to manage the NFT
       console.log("Approving LiquidityLocker to manage the factory NFT...");
-      const approveTx = await factory.approveNFT(
-        position_manager,
-        tokenIds[i],
-        lockerAddress
-      );
+      const approveTx = await factory.approveNFT(tokenIds[i], lockerAddress);
       await approveTx.wait();
-      console.log("Approval successful.");
 
       // Lock the liquidity
-      console.log("Locking liquidity...");
+      console.log("Locking Liquidity for one year...");
       //const duration = 3600 * 24 * 7; // 1 week in seconds
-      const duration = 180;
+      const duration = 6;
 
       const lockLiquidityTx = await locker.lockLiquidity(
         position_manager,
@@ -149,13 +163,92 @@ async function main() {
       console.log("Liquidity locked for 1 year.");
 
       // Get the TokenDeployed event emitted by the token contract
-      const liquidityLockedEvent = await getLiquidityLockedEvent(locker);
+      const liquidityLockedEvent = await getLatestEvent(
+        locker,
+        "LiquidityLocked"
+      );
 
       const lockId = liquidityLockedEvent.args[0];
+      const unlockDate = liquidityLockedEvent.args[3];
       console.log("lockId: ", lockId);
+
+      // store the lockId for each token
+      console.log("Storing lockId...");
+      const txx = await factory.storeLockID(
+        tokenIds[i],
+        lockId,
+        true,
+        unlockDate
+      );
+      await txx.wait();
+    } else if (liquidityRemovedStatus[i] == true && istokenDEAD[i] == true) {
+      // Remove all remaining liquidity
+
+      console.log("Unlocking liquidity...");
+      //const duration = 3600 * 24 * 7; // 1 week in seconds
+      const unlockLiquidityTx = await locker.unlockLiquidity(
+        lockID[i],
+        factoryAddress
+      );
+      await unlockLiquidityTx.wait();
+
+      console.log("Liquidity unlocked");
+
+      // Fetch the position details
+      const position = await factory.getPosition(tokenIds[i]);
+      const liquidity = position.liquidity;
+
+      // Remove liquidity
+      const tx = await factory.removeLiquidity(tokenIds[i], liquidity);
+
+      await tx.wait();
+
+      console.log("All remaining liquidity removed successfully!");
+
+      // Approve the locker to manage the NFT
+      console.log("Approving LiquidityLocker to manage the factory NFT...");
+      const approveTx = await factory.approveNFT(tokenIds[i], lockerAddress);
+      await approveTx.wait();
+      console.log("Approval successful.");
+
+      // Lock the liquidity
+      console.log("Locking liquidity again...");
+      //const duration = 3600 * 24 * 7; // 1 week in seconds
+      const duration = 120;
+
+      const lockLiquidityTx = await locker.lockLiquidity(
+        position_manager,
+        tokenIds[i],
+        duration,
+        factoryAddress
+      );
+      receipt = await lockLiquidityTx.wait();
+
+      console.log("Liquidity locked.");
+
+      const liquidityLockedEvent = await getLatestEvent(
+        locker,
+        "LiquidityLocked"
+      );
+
+      const lockId = liquidityLockedEvent.args[0];
+      const unlockDate = liquidityLockedEvent.args[3];
+
+      console.log("lockId: ", lockId);
+      console.log("unlockDate: ", unlockDate);
+
+      // store the lockId for each token
+      console.log("Storing lock details...");
+      const txx = await factory.storeLockID(
+        tokenIds[i],
+        lockId,
+        true,
+        unlockDate
+      );
+      await txx.wait();
     } else {
       console.log(
-        `Token at address ${addresses[i]} with token ID ${tokenIds[i]} is not old enough or liquidity has already been removed.`
+        `Token at address ${addresses[i]} with token ID ${tokenIds[i]} is still locked or liquidity has already been removed.`
       );
     }
   }

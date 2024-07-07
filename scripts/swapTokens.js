@@ -7,9 +7,9 @@ async function main() {
   );
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0x616737F94C56aA33e02AaC91eC81FB9633EC64D0";
+  const factoryAddress = "0xbAb4179468c4292d7050f482E9248C7e778005B8";
 
-  const tokenAddress = "0x5f4EE0b4D61f6697280c9DEC0A9EfD36FceDdE33";
+  const tokenAddress = "0xEA9a14abe42a876EF9b557dD400e0DEE728C60E6";
 
   const abi = require("../scripts/swapRouterABI.json");
 

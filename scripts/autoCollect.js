@@ -7,65 +7,10 @@ async function getLatestEvent(token, eventname) {
   // Query the filter for events emitted by the contract
   const events = await token.queryFilter(filter);
 
-  //console.log("Events: ", events);
-
   // Find the latest event
   const latestEvent = events[events.length - 1]; // Get the latest event
 
   return latestEvent;
-}
-
-async function removeLiqEarly(factory, _tokenID) {
-  // Fetch the position details
-  const position = await factory.getPosition(_tokenID);
-  const liquidity = position.liquidity;
-  const token0 = position.token0;
-  const token1 = position.token1;
-
-  console.log(`Position Details:`, position);
-  console.log("token0 = ", token0);
-  console.log("token1 = ", token1);
-  console.log("Liquidity = ", liquidity);
-
-  // Determine the correct pool address
-  const poolAddress = await factory.get_Pool(token0, token1, 10000);
-
-  // Fetch pool state (price, liquidity, etc.)
-  const poolContract = await ethers.getContractAt(
-    "IUniswapV3Pool",
-    poolAddress
-  );
-  const slot0 = await poolContract.slot0();
-  const sqrtPriceX96 = slot0.sqrtPriceX96;
-  const price = (BigInt(sqrtPriceX96) ** 2n * 10n ** 18n) / 2n ** 192n;
-  //const price = _price / (10n ** 18n);
-
-  console.log(`Pool Address: ${poolAddress}`);
-  console.log(`Sqrt Price X96: ${sqrtPriceX96}`);
-  console.log(`Price: ${price}`);
-
-  // Calculate liquidity to remove based on desired amount of WETH
-  const wethAmountToRemove = ethers.parseUnits("0.0001", 18); // 0.1 WETH
-
-  // Calculate the corresponding amount of tokens to remove
-  const tokensToRemove = (wethAmountToRemove * 10n ** 18n) / price;
-  console.log("tokensToRemove = ", tokensToRemove);
-
-  // Calculate the liquidity to remove (SQRT)
-  const liquidityToRemove = sqrt(wethAmountToRemove * tokensToRemove);
-  console.log(
-    `Calculated Liquidity to Remove: ${liquidityToRemove.toString()}`
-  );
-
-  // Ensure liquidity to remove is not greater than the available liquidity
-  const liquidityToRemoveSafe =
-    liquidityToRemove > liquidity ? liquidity : liquidityToRemove;
-
-  // Remove liquidity
-  const tx = await factory.removeLiquidity(_tokenID, liquidityToRemoveSafe);
-  const receipt = await tx.wait();
-
-  console.log("Initial liquidity removed successfully!");
 }
 
 async function main() {
@@ -77,11 +22,11 @@ async function main() {
   );
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xBD89A44A2DEC9A1B4AaeEb1b64bE4eF0adafAB8c";
+  const factoryAddress = "0xC1e8b127C08aDA6B5c7FfCB237870c304BCd5508";
 
-  const lockerAddress = "0x31828AAC589e46549F3980912A6a8001F81a9eD5";
+  const lockerAddress = "0x4ee875d1cd3DC0151332d54c13055A7f69c350Fd";
 
-  const treasuryAddress = "0x15ACB85CFc44fED7d5E4cC2d30342A6Dc7712405";
+  const treasuryAddress = "0x6eC4C0C1f5d4066e7499e61dD81583B587aCC098";
 
   const teamWallet = "0x6c55eb7cE46110Faa04F0CcaDa8b8f34eEcd471F";
 
@@ -104,10 +49,10 @@ async function main() {
     zeroFeesDays,
     istokenDEAD,
     lastFee,
+    lockID,
+    isLocked,
+    unlockTime,
   ] = await factory.getAllTokens();
-
-  const [_tokenId, _isLocked, _lockID, _unlockTime] =
-    await locker.getAllTokens();
 
   // Print results
   console.log("Addresses:", addresses);
@@ -117,19 +62,18 @@ async function main() {
   console.log("zeroFeesDays:", zeroFeesDays);
   console.log("istokenDEAD:", istokenDEAD);
   console.log("lastFee:", lastFee);
-
-  // Print results
-  console.log("Token IDs:", _tokenId);
-  console.log("isLocked:", _isLocked);
-  console.log("Lock ID:", _lockID);
-  console.log("Unlock Time:", _unlockTime);
+  console.log("lockID:", lockID);
+  console.log("isLocked:", isLocked);
+  console.log("unlockTime:", unlockTime);
 
   // Loop through all tokens to check their launch time
-  for (let i = 0; i < addresses.length; i++) {
-    if (istokenDEAD[i] == false && _isLocked[i] == true) {
-      // check if it is locked
 
+  for (let i = 0; i < addresses.length; i++) {
+    // check if it is locked
+
+    if (istokenDEAD[i] == false && isLocked[i] == true) {
       // Collect the fees from the locker
+      console.log("Collecting fees...");
       const collectFeesTx = await locker.collectFees(
         tokenIds[i],
         factoryAddress
@@ -137,16 +81,11 @@ async function main() {
       await collectFeesTx.wait();
       console.log(`Fees collected for tokenID ${tokenIds[i]}`);
 
-      //const feescollectedEvent = await getFeesCollectedEvent(locker);
-
       const feescollectedEvent = await getLatestEvent(locker, "FeesCollected");
 
       const tokenID = feescollectedEvent.args[0];
       const amount0 = feescollectedEvent.args[1];
       const amount1 = feescollectedEvent.args[2];
-      console.log("tokenID: ", tokenID);
-      console.log("amount0: ", amount0);
-      console.log("amount1: ", amount1);
 
       let token0, token1;
       if (addresses[i].toLowerCase() < WETH_address.toLowerCase()) {
@@ -161,8 +100,6 @@ async function main() {
           );
           await tx1.wait();
           console.log("Swap performed successfully!");
-
-          //const tokensSwappedEvent = await getTokensSwappedEvent(factory);
 
           const tokensSwappedEvent = await getLatestEvent(
             factory,
@@ -188,9 +125,6 @@ async function main() {
           );
           await tx2.wait();
           console.log("Swap performed successfully!");
-          // const feeFromSwap = amount0 *1/100;
-
-          //const tokensSwappedEvent = await getTokensSwappedEvent(factory);
 
           const tokensSwappedEvent = await getLatestEvent(
             factory,
@@ -206,27 +140,15 @@ async function main() {
         }
       }
 
-      if (amount0 <= lastFee && amount1 <= lastFee) {
-        await factory.updateNoFeeDays2(tokenIds[i]);
+      if (amount0 <= lastFee[i] && amount1 <= lastFee[i]) {
+        await factory.updateNoFeeDays(tokenIds[i]);
 
         console.log("Updated no fee days");
-
-        //const eventName = "RemoveEarly";
-
-        //const latestEvent = await getLatestEvent(factory);
-
-        //const eventResult = latestEvent.args[0];
-
-        //if (eventResult == true) {
-        console.log("Removing early...");
-        await removeLiqEarly(factory, tokenIds[i]);
-        //}
       } else {
         await factory.resetNoFeeDays(tokenIds[i]);
-        //console.log('Token is dead');
-        console.log("NoFeesDays Reset");
+        console.log("NoFeesDays RESET");
       }
-    } else if (istokenDEAD[i] == false && _isLocked[i] == false) {
+    } else if (istokenDEAD[i] == false && isLocked[i] == false) {
       // Collect the fees from the position
       console.log(
         `Collecting fees for token at address ${addresses[i]} with token ID ${tokenIds[i]}`
@@ -235,17 +157,11 @@ async function main() {
       await collectTx.wait();
       console.log("Fees collected successfully!");
 
-      // Get the TokenDeployed event emitted by the token contract
-      //const feescollectedEvent = await getFeesCollectedEvent(factory);
-
       const feescollectedEvent = await getLatestEvent(factory, "FeesCollected");
 
       const tokenID = feescollectedEvent.args[0];
       const amount0 = feescollectedEvent.args[1];
       const amount1 = feescollectedEvent.args[2];
-      console.log("tokenID: ", tokenID);
-      console.log("amount0: ", amount0);
-      console.log("amount1: ", amount1);
 
       let token0, token1;
       if (addresses[i].toLowerCase() < WETH_address.toLowerCase()) {
@@ -260,8 +176,6 @@ async function main() {
           );
           await tx1.wait();
           console.log("Swap performed successfully!");
-
-          //const tokensSwappedEvent = await getTokensSwappedEvent(factory);
 
           const tokensSwappedEvent = await getLatestEvent(
             factory,
@@ -287,9 +201,6 @@ async function main() {
           );
           await tx2.wait();
           console.log("Swap performed successfully!");
-          // const feeFromSwap = amount0 *1/100;
-
-          //const tokensSwappedEvent = await getTokensSwappedEvent(factory);
 
           const tokensSwappedEvent = await getLatestEvent(
             factory,
@@ -305,20 +216,9 @@ async function main() {
         }
       }
 
-      if (amount0 <= lastFee && amount1 <= lastFee) {
-        await factory.updateNoFeeDays2(tokenIds[i]);
+      if (amount0 <= lastFee[i] && amount1 <= lastFee[i]) {
+        await factory.updateNoFeeDays(tokenIds[i]);
         console.log("Updated no fee days");
-
-        //const eventName = "RemoveEarly";
-
-        const latestEvent = await getLatestEvent(factory, "RemoveFaster");
-
-        const isRemoveEarly = latestEvent.args[0];
-
-        if (isRemoveEarly == 1) {
-          console.log("Removing early....");
-          await removeLiqEarly(factory, tokenIds[i]);
-        }
       } else {
         await factory.resetNoFeeDays(tokenIds[i]);
         //console.log('Token is dead');

@@ -254,7 +254,6 @@ function pendingReward(address _user) external view returns (uint256) {
 
 
 
-
     function notifyFundsReceived(uint256 amount) external {
     require(msg.sender == factoryAddress, "Only factory can notify");
 
@@ -263,12 +262,6 @@ function pendingReward(address _user) external view returns (uint256) {
 handleReceivedWETH();     
 
 }
-
-
-
-
-
-
 
 
     event DebugAvailableWETH(uint256 availableWETH);
@@ -328,6 +321,10 @@ function getUnstakeRequest(uint index) public view returns (address user, uint25
     UnstakeRequest storage request = unstakeQueue[index];
     return (request.user, request.amount, request.timestamp);
 }
+
+
+
+
 
 
 
