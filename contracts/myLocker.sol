@@ -50,22 +50,6 @@ contract LiquidityLocker is ERC721Holder {
         
     }
 
-    /* // Method to get all token addresses
-    function getAllTokens() public view onlyOwner returns (uint256[] memory _tokenId, bool[] memory _isLocked, uint256[] memory _lockID, uint256[] memory _unlockTime) {
-    _tokenId = new uint256[](allTokens.length);
-    _isLocked = new bool[](allTokens.length);
-    _lockID = new uint256[](allTokens.length);
-    _unlockTime = new uint256[](allTokens.length);
-    
-    for (uint i = 0; i < allTokens.length; i++) {
-        _tokenId[i] = allTokens[i].tokenId;
-        _isLocked[i] = allTokens[i].isLocked;
-        _lockID[i] = allTokens[i].lockID;
-        _unlockTime[i] = allTokens[i].unlockTime;
-    }
-
-    return (_tokenId, _isLocked, _lockID, _unlockTime);
-} */
 
     // Locks the liquidity NFT
     function lockLiquidity(address _nftAddress, uint256 _tokenId, uint256 _duration, address factory) external onlyAuth returns (uint256 lockId) {
@@ -98,7 +82,7 @@ contract LiquidityLocker is ERC721Holder {
     }
 
     // Unlocks the liquidity NFT
-    function unlockLiquidity(uint256 _lockId, address factory) external onlyOwner {
+    function unlockLiquidity(uint256 _lockId, address factory) external onlyAuth {
         Lock storage lock = locks[_lockId];
         require(block.timestamp >= lock.unlockTime, "Liquidity is still locked");
 
@@ -121,7 +105,7 @@ contract LiquidityLocker is ERC721Holder {
     }
 
 // Function to collect fees from the locked NFT
-    function collectFees(uint256 tokenId, address factory) external onlyOwner {
+    function collectFees(uint256 tokenId, address factory) external returns (uint256 amount0, uint256 amount1) {
         INonfungiblePositionManager.CollectParams memory params =
             INonfungiblePositionManager.CollectParams({
                 tokenId: tokenId,
@@ -130,9 +114,11 @@ contract LiquidityLocker is ERC721Holder {
                 amount1Max: type(uint128).max
             });
 
-        (uint256 amount0, uint256 amount1) = positionManager.collect(params);
+        (amount0, amount1) = positionManager.collect(params);
 
         emit FeesCollected(tokenId, amount0, amount1);
+
+        return (amount0, amount1);
 
         
     }

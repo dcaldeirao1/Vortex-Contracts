@@ -1,4 +1,4 @@
-let totalWethCollected = 0; // removeEarly
+let totalWethCollected = 0n; // removeEarly
 
 async function getLatestEvent(token, eventname) {
   // Get the filter for the specified event
@@ -22,13 +22,13 @@ async function main() {
   );
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xC1e8b127C08aDA6B5c7FfCB237870c304BCd5508";
+  const factoryAddress = "0xe31ECa8B7ECF1b2C177315C29Af92bd072791c9F";
 
-  const lockerAddress = "0x4ee875d1cd3DC0151332d54c13055A7f69c350Fd";
+  const lockerAddress = "0x5353e1146aFFb3752562B2003763e4cF753c31Ea";
 
-  const treasuryAddress = "0x6eC4C0C1f5d4066e7499e61dD81583B587aCC098";
+  const treasuryAddress = "0xFe641AD27d0d950442bd7250b36a209bbb6E6c58";
 
-  const teamWallet = "0x6c55eb7cE46110Faa04F0CcaDa8b8f34eEcd471F";
+  const teamWallet = "0xdc28630221B2d58B8E249Df6d96c928f57bed952";
 
   const WETH_address = process.env.SEPOLIA_WETH;
 
@@ -47,11 +47,12 @@ async function main() {
     timestamps,
     liquidityRemovedStatus,
     zeroFeesDays,
-    istokenDEAD,
+    isInactive,
     lastFee,
     lockID,
     isLocked,
     unlockTime,
+    isDead,
   ] = await factory.getAllTokens();
 
   // Print results
@@ -60,211 +61,57 @@ async function main() {
   console.log("Timestamps:", timestamps);
   console.log("liquidityRemovedStatus:", liquidityRemovedStatus);
   console.log("zeroFeesDays:", zeroFeesDays);
-  console.log("istokenDEAD:", istokenDEAD);
+  console.log("isInactive:", isInactive);
   console.log("lastFee:", lastFee);
   console.log("lockID:", lockID);
   console.log("isLocked:", isLocked);
   console.log("unlockTime:", unlockTime);
+  console.log("isDead:", isDead);
 
   // Loop through all tokens to check their launch time
 
   for (let i = 0; i < addresses.length; i++) {
     // check if it is locked
 
-    if (istokenDEAD[i] == false && isLocked[i] == true) {
-      // Collect the fees from the locker
-      console.log("Collecting fees...");
-      const collectFeesTx = await locker.collectFees(
+    if (isInactive[i] == false && isLocked[i] == true) {
+      console.log("Collecting from the locker and swapping...");
+      const tx = await factory.collectFromLockerAndSwap(
         tokenIds[i],
-        factoryAddress
-      );
-      await collectFeesTx.wait();
-      console.log(`Fees collected for tokenID ${tokenIds[i]}`);
+        addresses[i]
+      ); // Await here to get the transaction object
+      const receipt = await tx.wait(); // Wait for the transaction to be mined
 
-      const feescollectedEvent = await getLatestEvent(locker, "FeesCollected");
+      console.log("Success.");
 
-      const tokenID = feescollectedEvent.args[0];
-      const amount0 = feescollectedEvent.args[1];
-      const amount1 = feescollectedEvent.args[2];
+      const vortexEvent = await getLatestEvent(factory, "VortexEvent");
 
-      let token0, token1;
-      if (addresses[i].toLowerCase() < WETH_address.toLowerCase()) {
-        token0 = addresses[i];
-        token1 = WETH_address;
-        if (amount0 > 0) {
-          console.log("Selling with factory function...");
-          const tx1 = await factory.swapTokensForWETH(
-            amount0,
-            addresses[i],
-            tokenIds[i]
-          );
-          await tx1.wait();
-          console.log("Swap performed successfully!");
+      const WethCollected = vortexEvent.args[0];
+      console.log("WethCollected", WethCollected);
+      totalWethCollected = totalWethCollected + WethCollected;
+    } else if (isInactive[i] == false && isLocked[i] == false) {
+      console.log("Collecting from the factory and swapping...");
+      const tx = await factory.collectFromFactoryAndSwap(
+        tokenIds[i],
+        addresses[i]
+      ); // Await here to get the transaction object
+      const receipt = await tx.wait(); // Wait for the transaction to be mined
+      console.log("Success.");
 
-          const tokensSwappedEvent = await getLatestEvent(
-            factory,
-            "TokensSwapped"
-          );
+      const vortexEvent = await getLatestEvent(factory, "VortexEvent");
 
-          const ethReceived = tokensSwappedEvent.args[0];
-          const formattedETH = ethers.formatUnits(ethReceived, 18);
-          console.log("WETH received: ", formattedETH);
-
-          const rewardAmount = ethReceived + amount1;
-          totalWethCollected = BigInt(totalWethCollected) + rewardAmount;
-        }
-      } else {
-        token0 = WETH_address;
-        token1 = addresses[i];
-        if (amount1 > 0) {
-          console.log("Selling with factory function...");
-          tx2 = await factory.swapTokensForWETH(
-            amount0,
-            addresses[i],
-            tokenIds[i]
-          );
-          await tx2.wait();
-          console.log("Swap performed successfully!");
-
-          const tokensSwappedEvent = await getLatestEvent(
-            factory,
-            "TokensSwapped"
-          );
-
-          const ethReceived = tokensSwappedEvent.args[0];
-          const formattedETH = ethers.formatUnits(ethReceived, 18);
-          console.log("WETH received: ", formattedETH);
-
-          const rewardAmount = ethReceived + amount0;
-          totalWethCollected = totalWethCollected + rewardAmount;
-        }
-      }
-
-      if (amount0 <= lastFee[i] && amount1 <= lastFee[i]) {
-        await factory.updateNoFeeDays(tokenIds[i]);
-
-        console.log("Updated no fee days");
-      } else {
-        await factory.resetNoFeeDays(tokenIds[i]);
-        console.log("NoFeesDays RESET");
-      }
-    } else if (istokenDEAD[i] == false && isLocked[i] == false) {
-      // Collect the fees from the position
-      console.log(
-        `Collecting fees for token at address ${addresses[i]} with token ID ${tokenIds[i]}`
-      );
-      const collectTx = await factory.collectFees(tokenIds[i]);
-      await collectTx.wait();
-      console.log("Fees collected successfully!");
-
-      const feescollectedEvent = await getLatestEvent(factory, "FeesCollected");
-
-      const tokenID = feescollectedEvent.args[0];
-      const amount0 = feescollectedEvent.args[1];
-      const amount1 = feescollectedEvent.args[2];
-
-      let token0, token1;
-      if (addresses[i].toLowerCase() < WETH_address.toLowerCase()) {
-        token0 = addresses[i];
-        token1 = WETH_address;
-        if (amount0 > 0) {
-          console.log("Selling with factory function...");
-          const tx1 = await factory.swapTokensForWETH(
-            amount0,
-            addresses[i],
-            tokenIds[i]
-          );
-          await tx1.wait();
-          console.log("Swap performed successfully!");
-
-          const tokensSwappedEvent = await getLatestEvent(
-            factory,
-            "TokensSwapped"
-          );
-
-          const ethReceived = tokensSwappedEvent.args[0];
-          const formattedETH = ethers.formatUnits(ethReceived, 18);
-          console.log("WETH received: ", formattedETH);
-
-          const rewardAmount = ethReceived + amount1;
-          totalWethCollected = BigInt(totalWethCollected) + rewardAmount;
-        }
-      } else {
-        token0 = WETH_address;
-        token1 = addresses[i];
-        if (amount1 > 0) {
-          console.log("Selling with factory function...");
-          tx2 = await factory.swapTokensForWETH(
-            amount0,
-            addresses[i],
-            tokenIds[i]
-          );
-          await tx2.wait();
-          console.log("Swap performed successfully!");
-
-          const tokensSwappedEvent = await getLatestEvent(
-            factory,
-            "TokensSwapped"
-          );
-
-          const ethReceived = tokensSwappedEvent.args[0];
-          const formattedETH = ethers.formatUnits(ethReceived, 18);
-          console.log("WETH received: ", formattedETH);
-
-          const rewardAmount = ethReceived + amount0;
-          totalWethCollected = totalWethCollected + rewardAmount;
-        }
-      }
-
-      if (amount0 <= lastFee[i] && amount1 <= lastFee[i]) {
-        await factory.updateNoFeeDays(tokenIds[i]);
-        console.log("Updated no fee days");
-      } else {
-        await factory.resetNoFeeDays(tokenIds[i]);
-        //console.log('Token is dead');
-        console.log("NoFeesDays Reset");
-      }
+      totalWethCollected += vortexEvent.args[0];
     } else {
       console.log("Dead token");
     }
   }
 
+  console.log("totalWethCollected = ", totalWethCollected);
+
   if (totalWethCollected > 0) {
-    console.log("Unwrapping...");
-    tx_convert = await factory.convertWETHToETH(totalWethCollected);
-    await tx_convert.wait();
-
-    const half_amount = totalWethCollected / BigInt(2);
-    const treasury_amount = (half_amount * BigInt(6)) / BigInt(10);
-    const team_amount = (half_amount * BigInt(4)) / BigInt(10);
-
-    // send to staking contract by calling addRewards function
-    console.log("Sending fees to the staking contract...");
-    const tx = await factory.callAddRewards(half_amount);
-    await tx.wait();
-    console.log("Sent to the staking contract!");
-
-    // send 0.3% to the treasury contract
-    const txSend = await deployer.sendTransaction({
-      to: treasuryAddress,
-      value: treasury_amount,
-      gasLimit: 9000000,
-    });
-
-    // Wait for the transaction to be mined
-    await txSend.wait();
-    console.log("ETH sent successfully to the treasury!");
-
-    // send 0.2% to the team wallet
-    const tx2 = await deployer.sendTransaction({
-      to: teamWallet,
-      value: team_amount,
-      gasLimit: 9000000, // Set gas limit for a simple transfer
-    });
-
-    // Wait for the transaction to be mined
-    await tx2.wait();
-    console.log("ETH sent successfully to the team!");
+    console.log("Distributing rewards...");
+    const tx = await factory.distributeFees(totalWethCollected); // Await here to get the transaction object
+    const receipt = await tx.wait(); // Wait for the transaction to be mined
+    console.log("Success.");
   }
 }
 main()

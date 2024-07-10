@@ -7,9 +7,9 @@ async function main() {
   );
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xbAb4179468c4292d7050f482E9248C7e778005B8";
+  const factoryAddress = "0xcEBD1d4b1c32a0E974cab2DF5620720728A107C6";
 
-  const tokenAddress = "0xEA9a14abe42a876EF9b557dD400e0DEE728C60E6";
+  const tokenAddress = "0x1E2E4ab99F6c4F5F2e4a6985578b3526fAc55C70";
 
   const abi = require("../scripts/swapRouterABI.json");
 
@@ -25,7 +25,7 @@ async function main() {
   // Amount of ETH to swap
   const amountIn = ethers.parseUnits("0.0042", 18); // 0.01 ETH
   // Amount of Tokens to swap
-  const amountIn2 = ethers.parseUnits("60", 18); // 0.01 ETH
+  const amountIn2 = ethers.parseUnits("30", 18); // 0.01 ETH
 
   /* // Swap parameters
     const params = {
@@ -45,12 +45,12 @@ async function main() {
     await tx.wait();
     console.log("Swap performed successfully!"); */
 
-  console.log("Buying with factory function...");
+  /* console.log("Buying with factory function...");
   tx1 = await factory.swapETHforTokens(amountIn, tokenAddress, {
     value: amountIn,
   });
   receipt = await tx1.wait();
-  console.log("Swap performed successfully!");
+  console.log("Swap performed successfully!"); */
 
   /* // Approve the SwapRouter to spend your tokens
     console.log("Approving the SwapRouter to spend tokens...");

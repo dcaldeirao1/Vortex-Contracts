@@ -6,8 +6,8 @@ async function main() {
   console.log("Using the account:", deployer.address);
 
   // Addresses of the deployed contracts
-  const factoryAddress = "0x86442F9F07d8A84F1Cf5b410eAd241399fF9ddFb";
-  const lockerAddress = "0x78A2E2622859c75e42C080Bed203Dd8B9FeDeFeD";
+  const factoryAddress = "0xE2b029b5968d32cf67A4407FD788bac5953c7820";
+  const lockerAddress = "0x26Ca8a1e9E3a78761B81C3b587C7715BD31F49f8";
   const position_manager = process.env.SEPOLIA_POSITION_MANAGER; // This would be dynamically obtained after adding liquidity
 
   // Retrieve the token ID from the event (assuming your factory emits an event with the token ID)
