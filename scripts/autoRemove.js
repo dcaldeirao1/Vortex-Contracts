@@ -18,9 +18,9 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Removing liquidity with the account:", deployer.address);
 
-  const factoryAddress = "0x5892F7EF2Cb0017C75a51D6bbB91f5C1615CbB29";
+  const factoryAddress = "0xa57797f37459B9a9A222407073694bD3C2E3A052";
 
-  const lockerAddress = "0x2eb803Ca9DA5730B66365545D93e59c2aFB28D4C";
+  const lockerAddress = "0x3B34e02f29B8a27682E8F4cb7142F23DD365f048";
 
   const position_manager = process.env.SEPOLIA_POSITION_MANAGER;
 
@@ -32,6 +32,7 @@ async function main() {
 
   const [
     addresses,
+    poolAddresses,
     tokenIds,
     timestamps,
     liquidityRemovedStatus,
@@ -46,6 +47,7 @@ async function main() {
 
   // Print results
   console.log("Addresses:", addresses);
+  console.log("poolAddresses: ", poolAddresses);
   console.log("Token IDs:", tokenIds);
   console.log("Timestamps:", timestamps);
   console.log("liquidityRemovedStatus:", liquidityRemovedStatus);

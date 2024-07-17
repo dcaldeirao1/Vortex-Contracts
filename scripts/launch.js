@@ -1,3 +1,5 @@
+const { SwapRouter } = require("@uniswap/v3-sdk");
+
 async function getLatestEvent(token, eventName) {
   // Get the filter for the TokenDeployed event
   const filter = token.filters[eventName]();
@@ -40,9 +42,11 @@ async function main() {
   const tokenSupply = "100";
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0x5892F7EF2Cb0017C75a51D6bbB91f5C1615CbB29";
+  const factoryAddress = "0xa57797f37459B9a9A222407073694bD3C2E3A052";
 
-  const lockerAddress = "0x2eb803Ca9DA5730B66365545D93e59c2aFB28D4C";
+  const lockerAddress = "0x3B34e02f29B8a27682E8F4cb7142F23DD365f048";
+
+  //const teamWallet = "0xdc28630221B2d58B8E249Df6d96c928f57bed952";
 
   const WETH_address = process.env.SEPOLIA_WETH;
 
@@ -59,7 +63,7 @@ async function main() {
   const wethAmount = ethers.parseUnits("0.0001", 18); // 0.01 WETH
 
   // Amount of ETH to swap
-  const amountIn = ethers.parseUnits("0.0001", 18); // 0.01 ETH
+  const amountIn = ethers.parseUnits("0.0000", 18); // 0.01 ETH
 
   // Call the deployToken function of the factory contract
   const tx = await factory.deployToken(tokenName, tokenSymbol, tokenSupply);
@@ -98,11 +102,11 @@ async function main() {
   await txtest.wait();
   console.log("Success!");
 
-  const tokensSwappedEvent = await getLatestEvent(factory, "TokensSwapped");
+  /* const tokensSwappedEvent = await getLatestEvent(factory, "TokensSwapped");
 
   const tokensReceived = tokensSwappedEvent.args[0];
   const formattedTokens = ethers.formatUnits(tokensReceived, 18);
-  console.log("Tokens received: ", formattedTokens);
+  console.log("Tokens received: ", formattedTokens); */
 }
 
 main()

@@ -22,9 +22,9 @@ async function main() {
   );
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xe31ECa8B7ECF1b2C177315C29Af92bd072791c9F";
+  const factoryAddress = "0xa57797f37459B9a9A222407073694bD3C2E3A052";
 
-  const lockerAddress = "0x5353e1146aFFb3752562B2003763e4cF753c31Ea";
+  const lockerAddress = "0x3B34e02f29B8a27682E8F4cb7142F23DD365f048";
 
   const treasuryAddress = "0xFe641AD27d0d950442bd7250b36a209bbb6E6c58";
 
@@ -43,6 +43,7 @@ async function main() {
   // Fetch all tokens and their timestamps
   const [
     addresses,
+    poolAddresses,
     tokenIds,
     timestamps,
     liquidityRemovedStatus,
@@ -57,6 +58,7 @@ async function main() {
 
   // Print results
   console.log("Addresses:", addresses);
+  console.log("poolAddresses:", poolAddresses);
   console.log("Token IDs:", tokenIds);
   console.log("Timestamps:", timestamps);
   console.log("liquidityRemovedStatus:", liquidityRemovedStatus);
@@ -107,12 +109,12 @@ async function main() {
 
   console.log("totalWethCollected = ", totalWethCollected);
 
-  if (totalWethCollected > 0) {
+  /* if (totalWethCollected > 0) {
     console.log("Distributing rewards...");
     const tx = await factory.distributeFees(totalWethCollected); // Await here to get the transaction object
     const receipt = await tx.wait(); // Wait for the transaction to be mined
     console.log("Success.");
-  }
+  } */
 }
 main()
   .then(() => process.exit(0))

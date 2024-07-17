@@ -14,9 +14,6 @@ contract LiquidityLocker is ERC721Holder {
         uint256 unlockTime;
     }
 
-
-    mapping(uint256 => uint256) private tokenIndex; // Maps tokenId to index in allTokens array
-
     address public owner;
     mapping(uint256 => Lock) public locks;
     uint256 public nextLockId = 0;
@@ -69,14 +66,7 @@ contract LiquidityLocker is ERC721Holder {
             unlockTime: unlockTime
         });
 
-
-        
-        // Save the index of the new token details in the mapping
-        //tokenIndex[_tokenId] = allTokens.length - 1;
-
         emit LiquidityLocked(lockId, _nftAddress, _tokenId, unlockTime);
-
-        
 
         return lockId;
     }
@@ -95,8 +85,6 @@ contract LiquidityLocker is ERC721Holder {
 
         emit LiquidityUnlocked(_lockId, nftAddress, token_Id);
 
-        //uint256 index = tokenIndex[token_Id]; // Get the index from mapping
-        // allTokens[index].isLocked = false;
     }
 
     // Function to approve the factory contract to manage the locked NFT
@@ -119,8 +107,6 @@ contract LiquidityLocker is ERC721Holder {
         emit FeesCollected(tokenId, amount0, amount1);
 
         return (amount0, amount1);
-
-        
     }
 
 

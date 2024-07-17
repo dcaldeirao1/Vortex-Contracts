@@ -1,6 +1,7 @@
-require("@nomicfoundation/hardhat-toolbox");
+//require("@nomicfoundation/hardhat-toolbox");
 require("@nomicfoundation/hardhat-ethers");
-require("@nomicfoundation/hardhat-network-helpers");
+//require("@nomicfoundation/hardhat-network-helpers");
+require("@nomiclabs/hardhat-etherscan");
 require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
@@ -12,8 +13,8 @@ module.exports = {
         enabled: true,
         runs: 1000,
       },
-      viaIR: true
-    }
+      viaIR: true,
+    },
   },
   networks: {
     sepolia: {
@@ -27,5 +28,8 @@ module.exports = {
     localhost: {
       url: "http://127.0.0.1:8545", // This is the default URL for the Hardhat node
     },
+  },
+  etherscan: {
+    apiKey: "3T3M3QYV6JD3R6XCFGYZFAJTPBQAD5HUET",
   },
 };
