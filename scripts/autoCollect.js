@@ -22,9 +22,9 @@ async function main() {
   );
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xa57797f37459B9a9A222407073694bD3C2E3A052";
+  const factoryAddress = "0xeDd1c182a8340c3B1fBD1bd74da303a8CbAe0b4f";
 
-  const lockerAddress = "0x3B34e02f29B8a27682E8F4cb7142F23DD365f048";
+  const lockerAddress = "0x5b52b749c1a30F34EEbD9A9abdC2311E3206f3Ab";
 
   const treasuryAddress = "0xFe641AD27d0d950442bd7250b36a209bbb6E6c58";
 
@@ -44,6 +44,7 @@ async function main() {
   const [
     addresses,
     poolAddresses,
+    tokenCreators,
     tokenIds,
     timestamps,
     liquidityRemovedStatus,
@@ -57,18 +58,19 @@ async function main() {
   ] = await factory.getAllTokens();
 
   // Print results
-  console.log("Addresses:", addresses);
-  console.log("poolAddresses:", poolAddresses);
-  console.log("Token IDs:", tokenIds);
-  console.log("Timestamps:", timestamps);
-  console.log("liquidityRemovedStatus:", liquidityRemovedStatus);
-  console.log("zeroFeesDays:", zeroFeesDays);
-  console.log("isInactive:", isInactive);
-  console.log("lastFee:", lastFee);
-  console.log("lockID:", lockID);
-  console.log("isLocked:", isLocked);
-  console.log("unlockTime:", unlockTime);
-  console.log("isDead:", isDead);
+  console.log("Addresses: ", addresses);
+  console.log("poolAddresses: ", poolAddresses);
+  console.log("tokenCreators: ", tokenCreators);
+  console.log("Token IDs: ", tokenIds);
+  console.log("Timestamps: ", timestamps);
+  console.log("liquidityRemovedStatus: ", liquidityRemovedStatus);
+  console.log("zeroFeesDays: ", zeroFeesDays);
+  console.log("isInactive: ", isInactive);
+  console.log("lastFee: ", lastFee);
+  console.log("lockID: ", lockID);
+  console.log("isLocked: ", isLocked);
+  console.log("unlockTime: ", unlockTime);
+  console.log("isDead: ", isDead);
 
   // Loop through all tokens to check their launch time
 
@@ -80,8 +82,8 @@ async function main() {
       const tx = await factory.collectFromLockerAndSwap(
         tokenIds[i],
         addresses[i]
-      ); // Await here to get the transaction object
-      const receipt = await tx.wait(); // Wait for the transaction to be mined
+      );
+      const receipt = await tx.wait();
 
       console.log("Success.");
 
@@ -90,31 +92,12 @@ async function main() {
       const WethCollected = vortexEvent.args[0];
       console.log("WethCollected", WethCollected);
       totalWethCollected = totalWethCollected + WethCollected;
-    } else if (isInactive[i] == false && isLocked[i] == false) {
-      console.log("Collecting from the factory and swapping...");
-      const tx = await factory.collectFromFactoryAndSwap(
-        tokenIds[i],
-        addresses[i]
-      ); // Await here to get the transaction object
-      const receipt = await tx.wait(); // Wait for the transaction to be mined
-      console.log("Success.");
-
-      const vortexEvent = await getLatestEvent(factory, "VortexEvent");
-
-      totalWethCollected += vortexEvent.args[0];
     } else {
       console.log("Dead token");
     }
   }
 
   console.log("totalWethCollected = ", totalWethCollected);
-
-  /* if (totalWethCollected > 0) {
-    console.log("Distributing rewards...");
-    const tx = await factory.distributeFees(totalWethCollected); // Await here to get the transaction object
-    const receipt = await tx.wait(); // Wait for the transaction to be mined
-    console.log("Success.");
-  } */
 }
 main()
   .then(() => process.exit(0))

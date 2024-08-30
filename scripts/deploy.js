@@ -6,7 +6,7 @@ async function main() {
   const positionManager_address = process.env.SEPOLIA_POSITION_MANAGER;
   const swap_router = process.env.SEPOLIA_SWAP_ROUTER;
   const WETH_address = process.env.SEPOLIA_WETH;
-  const teamWallet = "0xdc28630221B2d58B8E249Df6d96c928f57bed952";
+  const teamWallet = process.env.TEAM_WALLET;
 
   const [deployer] = await ethers.getSigners();
 
@@ -29,6 +29,18 @@ async function main() {
   );
   const factoryAddress = myFactory.target;
   console.log("MyFactory address:", myFactory.target);
+
+  // Verify Factory
+  // npx hardhat verify --network base 0xF686e6CAF7d823E4130339E6f2b02C37836fE90F 0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1 0x4200000000000000000000000000000000000006 0x33128a8fC17869897dcE68Ed026d694621f6FDfD 0x2626664c2603336E57B271c5C0b26F421741e481 0xcfA089cdB2802548772D9e8Cd3425a102044b1FF 0xdc28630221B2d58B8E249Df6d96c928f57bed952
+
+  // Verify Locker
+  // npx hardhat verify --network base 0xcfA089cdB2802548772D9e8Cd3425a102044b1FF 0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1
+
+  // Verify Staking
+  // npx hardhat verify --network base 0xAC4A1fD60e7a33c4cD89F7D08Dc2D61dB6B940C6 0x4200000000000000000000000000000000000006 0xF686e6CAF7d823E4130339E6f2b02C37836fE90F
+
+  // Verify Treasury
+  // npx hardhat verify --network base 0x53996176b6C1Ae12E6deB27F342bD4B25236BA8B 0xF686e6CAF7d823E4130339E6f2b02C37836fE90F
 
   /* // Wait a few seconds for the contract to be propagated
   await new Promise((r) => setTimeout(r, 60000));
@@ -79,7 +91,7 @@ async function main() {
   console.log("Done!");
 
   // Amount of WETH to send (in Wei)
-  const amountInWei = ethers.parseUnits("0.0004", 18);
+  const amountInWei = ethers.parseUnits("0.0003", 18);
 
   /* const txx = await factory.transferWETHToFactory(amountInWei);
   await txx.wait();

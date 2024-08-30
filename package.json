@@ -11,6 +11,7 @@
     "@uniswap/v3-core": "^1.0.1",
     "@uniswap/v3-periphery": "^1.4.4",
     "@uniswap/v3-sdk": "^3.11.0",
+    "axios": "^1.7.3",
     "dotenv": "^16.4.5",
     "ethers": "^6.12.1",
     "react": "^18.2.0",
@@ -44,7 +45,7 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "@nomicfoundation/hardhat-verify": "^2.0.8",
+    "@nomicfoundation/hardhat-verify": "^2.0.9",
     "@nomiclabs/hardhat-etherscan": "^3.1.8",
     "hardhat": "^2.22.5"
   }

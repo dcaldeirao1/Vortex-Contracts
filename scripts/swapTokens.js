@@ -7,9 +7,11 @@ async function main() {
   );
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xa57797f37459B9a9A222407073694bD3C2E3A052";
+  const factoryAddress = "0xeDd1c182a8340c3B1fBD1bd74da303a8CbAe0b4f";
 
-  const tokenAddress = "0x6b0d55b0C6B4eA6e05D23EEb521C1Ee592503bBD";
+  const tokenAddress = "0xe502f46c9bCe3C0223F82b31F13DE4484a7E23ee";
+
+  //const poolAddress = "0xbaeF495636C412D3ac9EEd758fF8d47406989a31";
 
   const abi = require("../scripts/swapRouterABI.json");
 
@@ -23,9 +25,16 @@ async function main() {
   const swapRouter = new ethers.Contract(swapRouterAddress, abi, deployer);
 
   // Amount of ETH to swap
-  const amountIn = ethers.parseUnits("0.000005", 18); // 0.01 ETH
+  const amountIn = ethers.parseUnits("0.0000001", 18); // 0.01 ETH
   // Amount of Tokens to swap
-  const amountIn2 = ethers.parseUnits("4", 18); // 0.01 ETH
+  const amountIn2 = ethers.parseUnits("3", 18); // 0.01 ETH
+
+  console.log("Checking price and MC...");
+  const [allTokens, allActiveTokens, fees] = await factory.getMetrics();
+  //await tx3.wait();
+  console.log("Number of launches: ", allTokens);
+  console.log("Number of active tokens: ", allActiveTokens);
+  console.log("Fees collected: ", fees);
 
   /* // Swap parameters
     const params = {
@@ -45,12 +54,16 @@ async function main() {
     await tx.wait();
     console.log("Swap performed successfully!"); */
 
-  console.log("Buying with factory function...");
+  //-----------------------------------------------------------------------------------------
+
+  /* console.log("Buying with factory function...");
   tx1 = await factory.swapETHforTokens(amountIn, tokenAddress, {
     value: amountIn,
   });
   receipt = await tx1.wait();
-  console.log("Swap performed successfully!");
+  console.log("Swap performed successfully!"); */
+
+  //-----------------------------------------------------------------------------------------
 
   /* // Approve the SwapRouter to spend your tokens
     console.log("Approving the SwapRouter to spend tokens...");

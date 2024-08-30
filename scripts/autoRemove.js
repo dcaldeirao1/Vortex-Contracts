@@ -18,9 +18,9 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Removing liquidity with the account:", deployer.address);
 
-  const factoryAddress = "0xa57797f37459B9a9A222407073694bD3C2E3A052";
+  const factoryAddress = "0xeDd1c182a8340c3B1fBD1bd74da303a8CbAe0b4f";
 
-  const lockerAddress = "0x3B34e02f29B8a27682E8F4cb7142F23DD365f048";
+  const lockerAddress = "0x5b52b749c1a30F34EEbD9A9abdC2311E3206f3Ab";
 
   const position_manager = process.env.SEPOLIA_POSITION_MANAGER;
 
@@ -33,6 +33,7 @@ async function main() {
   const [
     addresses,
     poolAddresses,
+    tokenCreators,
     tokenIds,
     timestamps,
     liquidityRemovedStatus,
@@ -48,6 +49,7 @@ async function main() {
   // Print results
   console.log("Addresses:", addresses);
   console.log("poolAddresses: ", poolAddresses);
+  console.log("tokenCreators: ", tokenCreators);
   console.log("Token IDs:", tokenIds);
   console.log("Timestamps:", timestamps);
   console.log("liquidityRemovedStatus:", liquidityRemovedStatus);
@@ -60,31 +62,32 @@ async function main() {
 
   // Loop through all tokens to check their launch time
   for (let i = 0; i < addresses.length; i++) {
-    // Check if the token's initial liquidity has already been removed
+    // Check if the token's initial liquidity has already been removed and if the locktime has passed
 
     if (!liquidityRemovedStatus[i] && currentTime > unlockTime[i]) {
       console.log("Removing initial liquidity and relocking...");
-      const tx = await factory.removeInitialLiquidity(tokenIds[i], lockID[i]); // Await here to get the transaction object
-      const receipt = await tx.wait(); // Wait for the transaction to be mined
+      const tx = await factory.removeInitialLiquidity(tokenIds[i], lockID[i]); // Remove the initial liq provided and relock
+      const receipt = await tx.wait();
       console.log("Success.");
     } else if (
       liquidityRemovedStatus[i] == true &&
       isInactive[i] == true &&
-      currentTime > unlockTime[i]
+      currentTime > unlockTime[i] &&
+      isDead[i] == false
     ) {
       console.log("Removing all liquidity and marking token as dead...");
-      const tx = await factory.removeDeadLiquidity(tokenIds[i], lockID[i]); // Await here to get the transaction object
-      const receipt = await tx.wait(); // Wait for the transaction to be mined
+      const tx = await factory.removeDeadLiquidity(tokenIds[i], lockID[i]); // Remove the remaining liquidity when a token dies
+      const receipt = await tx.wait();
       console.log("Success.");
     } else if (
       liquidityRemovedStatus[i] == true &&
       isInactive[i] == false &&
-      currentTime > unlockTime[i]
+      currentTime > unlockTime[i] &&
+      isDead[i] == false
     ) {
       console.log("Relocking liquidity...");
-      const duration = 6; // 1 month
-      const tx = await factory.relock(tokenIds[i], lockID[i], duration); // Await here to get the transaction object
-      const receipt = await tx.wait(); // Wait for the transaction to be mined
+      const tx = await factory.relock(tokenIds[i], lockID[i]); // Relock liquidity for 1 month
+      const receipt = await tx.wait();
       console.log("Done");
     } else {
       console.log(

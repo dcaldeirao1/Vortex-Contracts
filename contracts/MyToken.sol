@@ -15,6 +15,7 @@ contract MyToken is ERC20 {
     uint256 public maxHolding;
     address swapRouter;
     address public factoryAddress;
+    address public deadAddress = 0x000000000000000000000000000000000000dEaD;
     address positionManager;
     uint256 public constant MAX_WALLET_PERCENTAGE = 5;  // 5% max wallet
     uint256 public maxWalletAmount;
@@ -74,7 +75,7 @@ contract MyToken is ERC20 {
         uint256 index = tokenIndex[address(this)];
 
         // Check max holding limit for the recipient 
-        if ( allTokens[index].maxWalletEnabled == true && to != factoryAddress && to != address(this) && from != to && to != allTokens[index].poolAddress) {
+        if ( allTokens[index].maxWalletEnabled == true && to != factoryAddress && from != factoryAddress && to != deadAddress && to != address(this) && from != to && to != allTokens[index].poolAddress) {
             uint256 maxHoldings = (totalSupply() * 5) / 100;
             uint256 toBalance = balanceOf(to);
             require( toBalance + value <= maxHoldings, "MyToken: Transfer amount exceeds the max holding limit");

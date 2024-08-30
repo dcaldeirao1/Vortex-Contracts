@@ -5,12 +5,10 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-
-
 contract SimpleStaking is ReentrancyGuard{
     mapping(address => uint256) public stakes;
     mapping(address => uint256) public rewardDebt;
-     mapping(address => uint256) public pendingUnstakes;
+    mapping(address => uint256) public pendingUnstakes;
     address public factoryAddress;
     address public weth;
     address public owner;
@@ -18,7 +16,7 @@ contract SimpleStaking is ReentrancyGuard{
     uint256 public totalRewards;
     uint256 public accRewardPerShare; // Accumulated rewards per share, times 1e12 to prevent precision loss
     uint256 public lastRewardTime;
-   uint256 public constant REWARD_INTERVAL = 5 minutes; // Reward distribution interval
+    uint256 public constant REWARD_INTERVAL = 5 minutes; // Reward distribution interval
 
 
     event Stake(address indexed user, uint256 amount);
@@ -30,9 +28,6 @@ contract SimpleStaking is ReentrancyGuard{
     event UnstakeProcessed(address indexed user, uint256 amount, uint256 pendingAmount);
     event FundsReceived(uint256 amount, uint256 timestamp);
 
-
-
-
 struct UnstakeRequest {
     address user;
     uint256 amount;
@@ -40,8 +35,6 @@ struct UnstakeRequest {
 }
 
 UnstakeRequest[] public unstakeQueue;
-
-
  
   constructor(address _weth, address factory) {
         owner = msg.sender;  // Set the deployer as the owner
@@ -50,6 +43,13 @@ UnstakeRequest[] public unstakeQueue;
         factoryAddress = factory;
     }
 
+function getTotalStaked() public view returns (uint256) {
+        return totalStaked;
+    }
+
+    function getTotalRewards() external view returns (uint256) {
+        return totalRewards;
+    }
 
 function stake() external payable nonReentrant {
     require(msg.value > 0, "Cannot stake 0 ETH");
@@ -212,24 +212,23 @@ function pendingReward(address _user) external view returns (uint256) {
     updatePool();
 
     uint256 accumulatedReward = (userStake * accRewardPerShare / 1e12);
-    uint256 pendingReward = accumulatedReward - rewardDebt[msg.sender];
+    uint256 pendingRewards = accumulatedReward - rewardDebt[msg.sender];
 
-    require(pendingReward > 0, "No rewards to claim");
-    require(IWETH(weth).balanceOf(address(this)) >= pendingReward, "Not enough WETH in contract");
+    require(pendingRewards > 0, "No rewards to claim");
+    require(IWETH(weth).balanceOf(address(this)) >= pendingRewards, "Not enough WETH in contract");
 
     // Update the reward debt to the latest accumulated reward
     rewardDebt[msg.sender] = accumulatedReward;
 
     // Convert WETH to ETH
-    IWETH(weth).withdraw(pendingReward);
+    IWETH(weth).withdraw(pendingRewards);
  
     // Send ETH to the user
-    (bool sent, ) = payable(msg.sender).call{value: pendingReward}("");
+    (bool sent, ) = payable(msg.sender).call{value: pendingRewards}("");
     require(sent, "Failed to send ETH");
 
-    emit RewardClaimed(msg.sender, pendingReward);
+    emit RewardClaimed(msg.sender, pendingRewards);
 }
-
 
 
  // Fallback function to receive Ether
@@ -255,13 +254,15 @@ function pendingReward(address _user) external view returns (uint256) {
 
 
     function notifyFundsReceived(uint256 amount) external {
-    require(msg.sender == factoryAddress, "Only factory can notify");
 
-    // Optionally, you can add logic here if you need to adjust any balances or states based on the received funds
-    emit FundsReceived(amount, block.timestamp);
-handleReceivedWETH();     
+        require(msg.sender == factoryAddress, "Only factory can notify");
 
-}
+        // Optionally, you can add logic here if you need to adjust any balances or states based on the received funds
+        emit FundsReceived(amount, block.timestamp);
+
+        handleReceivedWETH();     
+
+    }
 
 
     event DebugAvailableWETH(uint256 availableWETH);
@@ -269,10 +270,8 @@ handleReceivedWETH();
     event UnstakeRequestDetails(uint index, address user, uint256 amount, uint256 pendingUnstakes);
     event WETHProcessed(address user, uint256 processedAmount, uint256 remainingWETH);
     event ProcessUnstakeError(address user, uint256 requestedAmount, string error);
-  event FailedToProcessUnstake(address user, uint256 amount);
-  event FundsRequested(uint256 amount);
-
-
+    event FailedToProcessUnstake(address user, uint256 amount);
+    event FundsRequested(uint256 amount);
 
 
 function handleReceivedWETH() internal{ 
@@ -287,10 +286,10 @@ function handleReceivedWETH() internal{
             processImmediateUnstake(request.user, request.amount);  // Process the unstake immediately
             removeFromQueue(0);  // Remove the processed request from the queue
         } else {
- uint256 wethShortfall = request.amount - availableWETH;
+            uint256 wethShortfall = request.amount - availableWETH;
             notifyFactoryForFunds(wethShortfall);  // Request the exact needed funds from the factory
             emit FundsRequested(wethShortfall);  // Optionally log this event
-                    }
+            }
     }
 }
 
@@ -299,8 +298,6 @@ function removeFromQueue(uint index) internal {
     unstakeQueue[index] = unstakeQueue[unstakeQueue.length - 1];
     unstakeQueue.pop();  // Remove the last element after moving it to replace the processed one
 }
-
-
 
 
 
@@ -321,12 +318,6 @@ function getUnstakeRequest(uint index) public view returns (address user, uint25
     UnstakeRequest storage request = unstakeQueue[index];
     return (request.user, request.amount, request.timestamp);
 }
-
-
-
-
-
-
 
 }
 

@@ -42,15 +42,9 @@ async function main() {
   const tokenSupply = "100";
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xa57797f37459B9a9A222407073694bD3C2E3A052";
+  const factoryAddress = "0xeDd1c182a8340c3B1fBD1bd74da303a8CbAe0b4f";
 
-  const lockerAddress = "0x3B34e02f29B8a27682E8F4cb7142F23DD365f048";
-
-  //const teamWallet = "0xdc28630221B2d58B8E249Df6d96c928f57bed952";
-
-  const WETH_address = process.env.SEPOLIA_WETH;
-
-  const nftAddress = process.env.SEPOLIA_POSITION_MANAGER;
+  const lockerAddress = "0x5b52b749c1a30F34EEbD9A9abdC2311E3206f3Ab";
 
   // Connect to the factory contract using its ABI and address
   const Factory = await ethers.getContractFactory("MyFactory");
@@ -59,11 +53,8 @@ async function main() {
   const LiquidityLocker = await ethers.getContractFactory("LiquidityLocker");
   const locker = await LiquidityLocker.attach(lockerAddress);
 
-  const tokenAmount = ethers.parseUnits(tokenSupply, 18); // 1,000,000 tokens with 18 decimals
-  const wethAmount = ethers.parseUnits("0.0001", 18); // 0.01 WETH
-
   // Amount of ETH to swap
-  const amountIn = ethers.parseUnits("0.0000", 18); // 0.01 ETH
+  const amountIn = ethers.parseUnits("0.0000005", 18); // 0.01 ETH
 
   // Call the deployToken function of the factory contract
   const tx = await factory.deployToken(tokenName, tokenSymbol, tokenSupply);
