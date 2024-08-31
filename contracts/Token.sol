@@ -17,7 +17,7 @@ contract MyToken is ERC20 {
     address public factoryAddress;
     address public deadAddress = 0x000000000000000000000000000000000000dEaD;
     address positionManager;
-    uint256 public constant MAX_WALLET_PERCENTAGE = 5;  // 5% max wallet
+    uint256 public MAX_WALLET_PERCENTAGE = 5;  // 5% max wallet
     uint256 public maxWalletAmount;
     bool public maxWalletEnabled = false;
 
@@ -38,7 +38,7 @@ contract MyToken is ERC20 {
 
     constructor(string memory name, string memory symbol, uint256 totalSupply, address factory) ERC20(name, symbol) {
         
-        maxHolding = (totalSupply * 10**18 * 5) / 100; // 5% of total supply in wei
+        maxHolding = (totalSupply * 10**18 * MAX_WALLET_PERCENTAGE) / 100; // 5% of total supply in wei
 
         factoryAddress = factory;
 
@@ -76,7 +76,7 @@ contract MyToken is ERC20 {
 
         // Check max holding limit for the recipient 
         if ( allTokens[index].maxWalletEnabled == true && to != factoryAddress && from != factoryAddress && to != deadAddress && to != address(this) && from != to && to != allTokens[index].poolAddress) {
-            uint256 maxHoldings = (totalSupply() * 5) / 100;
+            uint256 maxHoldings = (totalSupply() * MAX_WALLET_PERCENTAGE) / 100;
             uint256 toBalance = balanceOf(to);
             require( toBalance + value <= maxHoldings, "MyToken: Transfer amount exceeds the max holding limit");
         }

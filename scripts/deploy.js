@@ -2,10 +2,10 @@ const { ethers } = require("hardhat");
 
 async function main() {
   //Setting contract addresses
-  const uniswapV3Factory_address = process.env.SEPOLIA_UNISWAP_FACTORY;
-  const positionManager_address = process.env.SEPOLIA_POSITION_MANAGER;
-  const swap_router = process.env.SEPOLIA_SWAP_ROUTER;
-  const WETH_address = process.env.SEPOLIA_WETH;
+  const uniswapV3Factory_address = process.env.BNB_UNISWAP_FACTORY;
+  const positionManager_address = process.env.BNB_POSITION_MANAGER;
+  const swap_router = process.env.BNB_SWAP_ROUTER;
+  const WETH_address = process.env.WBNB;
   const teamWallet = process.env.TEAM_WALLET;
 
   const [deployer] = await ethers.getSigners();
