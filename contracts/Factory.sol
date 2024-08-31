@@ -8,7 +8,7 @@ import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "contracts/Staking.sol";
-import "contracts/MyToken.sol";
+import "contracts/Token.sol";
 
 contract MyFactory {
 
@@ -29,9 +29,10 @@ contract MyFactory {
     address teamWallet;
     uint256 rewardAmount;
     address treasuryAddress;
-    uint256 wethProvided = 0.00001 ether;
-    uint256 public lockTime1 = 6; // 7 days
-    uint256 public lockTime2 = 6; // 30 days
+    uint256 wethProvided = 2 ether;
+    uint256 public lockTime1 = 7 days; 
+    uint256 public lockTime2 = 30 days; 
+    uint256 public maxZeroFeeDays = 15; 
 
     // Struct where each token's details are saved
     struct TokenDetails {
@@ -322,7 +323,7 @@ contract MyFactory {
         // Approve the locker contract to manage the liquidity NFT
         IERC721(address(positionManager)).approve(lockerAddress, tokenId);
 
-        uint256 duration = lockTime1; // Define the initial lock duration which equals the time the platform lends this liquidity
+        uint256 duration = lockTime1; 
 
         // Lock the liquidity NFT
         uint256 lockID = ILocker(lockerAddress).lockLiquidity(address(positionManager), tokenId, duration, address(this));
@@ -360,13 +361,9 @@ contract MyFactory {
     // If the user chooses to buy tokens when launching
     if(amountToBuy > 0){
 
-        // Calculate 3% tax
         uint256 taxAmount = (amountToBuy * 3) / 100;
-
-        // Update the amount to swap after tax
         uint256 amountToSwap = amountToBuy - taxAmount;
 
-        // Transfer the tax to the specific wallet
         payable(teamWallet).transfer(taxAmount);
 
         approveToken(weth, address(swapRouter), amountToSwap);
@@ -390,12 +387,13 @@ contract MyFactory {
     }
 
 
-// Counts how many consecutive days with no volume (we will collect fees once per day)
+// Counts how many consecutive days with no volume 
 function updateNoFeeDays(uint256 tokenId) internal { 
 
-    uint256 index = tokenIndex[tokenId]; // Get the index from mapping
+    uint256 index = tokenIndex[tokenId]; 
 
-    if( allTokens[index].zerofeedays >= 1){ // When the count reaches 15 consecutive days the token is marked as innactive
+    // When the count reaches 15 consecutive days the token is marked as innactive
+    if( allTokens[index].zerofeedays >=  maxZeroFeeDays){ 
         allTokens[index].isInactive = true;
     }
 
@@ -485,6 +483,7 @@ function resetNoFeeDays(uint256 tokenId) internal {
 
             emit VortexEvent(totalWethCollectedLocal);
             
+           // Distribute collected fees 
            if (totalWethCollectedLocal > 0){
 
             uint256 devAmount = (totalWethCollectedLocal * 20) / 100;
@@ -624,16 +623,13 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
         ILocker lockerContract = ILocker(lockerAddress);
         lockerContract.unlockLiquidity(lockId, address(this));
 
-        // Provided amount of initial liquidity
         uint256 wethAmountToRemove = wethProvided; 
 
-        // Store the lockId 
         storeLockID(tokenId, lockId, false, 0);
 
         // Fetch the position details
         (,, address token0, address token1, uint24 fee, , , uint128 liquidity, , , ,) = positionManager.positions(tokenId);
 
-        // Determine the correct pool address
         address poolAddress = uniswapFactory.getPool(token0, token1, fee);
 
         // Fetch pool state (price, liquidity, etc.)
@@ -644,30 +640,24 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
         // Calculate the corresponding amount of tokens to remove
         uint256 tokensToRemove = (wethAmountToRemove * 10 ** 18) / price;
 
-        // Calculate the liquidity to remove (SQRT)
+        // Calculate the liquidity to remove 
         uint128 liquidityToRemove = uint128(sqrt(wethAmountToRemove * tokensToRemove));
 
-        // Ensure liquidity to remove is not greater than the available liquidity
         uint128 liquidityToRemoveSafe = liquidityToRemove > liquidity ? liquidity : liquidityToRemove;
 
-        // Remove liquidity
         (uint256 amount0, uint256 amount1) = removeLiquidity(tokenId, liquidityToRemoveSafe);
 
-        // only swap if there is enough liquidity
-        if(liquidity > liquidityToRemoveSafe){
 
         if(token0 == weth ){
-            //swapTokensForWETH(amount1, token1);
             IERC20(token1).transfer(deadAddress, amount1);
 
         }
 
         else if(token1 == weth){
-            //swapTokensForWETH(amount0, token0);
             IERC20(token0).transfer(deadAddress, amount0);
         } 
 
-        }
+        
         // Approve the locker to manage the NFT
         approveNFT(tokenId, lockerAddress);
 
@@ -676,7 +666,6 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
         uint256 newLockId = locker.lockLiquidity(address(positionManager), tokenId, duration, address(this));
         uint256 unlockDate = block.timestamp + lockTime2;
 
-        // Store the lockId for each token
         storeLockID(tokenId, newLockId, true, unlockDate);
 
     }
@@ -696,14 +685,12 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
 
             if(token0 == weth){
 
-                // Approve the factory contract to spend WETH
                 require(IERC20(token1).approve(address(this), amount1), "Approval failed");
 
                 IERC20(token1).transferFrom(address(this), deadAddress, amount1);
 
             } else {
 
-                // Approve the factory contract to spend WETH
                 require(IERC20(token0).approve(address(this), amount0), "Approval failed");
 
                 IERC20(token0).transferFrom(address(this), deadAddress, amount0);
@@ -716,7 +703,7 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
     }
 
 
-    // Function to enable the max wallet limit at 5%
+    // Function to enable the max wallet limit 
     function enableMaxWalletLimit(address tokenAddress, uint256 tokenId) internal {
         
         uint256 index = tokenIndex[tokenId];
@@ -754,7 +741,7 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
         
     }
 
-    
+    // Add rewards to the staking contract
     function callAddRewards (uint256 amount ) external payable onlyOwner {
 
         require(msg.value > 0, "No rewards to add");
@@ -777,7 +764,7 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
         tryToSendFunds();
     }
 
-    // if the factory has funds not being lended, sent to unstakers
+    // if the factory has funds not being lent, sent to unstakers
     function tryToSendFunds() public {
         uint256 availableWETH = IERC20(weth).balanceOf(address(this));
             if (availableWETH >= pendingFunds && pendingFunds > 0) {

@@ -42,9 +42,9 @@ async function main() {
   const tokenSupply = "100";
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xeDd1c182a8340c3B1fBD1bd74da303a8CbAe0b4f";
+  const factoryAddress = "0xB274EBe5EEc2FD4d44336cd25118611FDAFd01AF";
 
-  const lockerAddress = "0x5b52b749c1a30F34EEbD9A9abdC2311E3206f3Ab";
+  const lockerAddress = "0x75afe9B972a4aBD8baCa1c42558eAd1c89A7A697";
 
   // Connect to the factory contract using its ABI and address
   const Factory = await ethers.getContractFactory("MyFactory");
@@ -54,7 +54,7 @@ async function main() {
   const locker = await LiquidityLocker.attach(lockerAddress);
 
   // Amount of ETH to swap
-  const amountIn = ethers.parseUnits("0.0000005", 18); // 0.01 ETH
+  const amountIn = ethers.parseUnits("0.0000000", 18); // 0.01 ETH
 
   // Call the deployToken function of the factory contract
   const tx = await factory.deployToken(tokenName, tokenSymbol, tokenSupply);
@@ -66,25 +66,6 @@ async function main() {
   const tokenAddress = tokenDeployedEvent.args[0];
   console.log("Token Address: ", tokenAddress);
 
-  /* let token0, token1, token0amount, token1amount;
-  if (tokenAddress.toLowerCase() < WETH_address.toLowerCase()) {
-    token0 = tokenAddress;
-    token1 = WETH_address;
-    token0amount = tokenAmount;
-    token1amount = wethAmount;
-  } else {
-    token0 = WETH_address;
-    token1 = tokenAddress;
-    token0amount = wethAmount;
-    token1amount = tokenAmount;
-  }
-
-  // Calculate sqrtPriceX96 considering both tokens have 18 decimals
-  const priceRatio =
-    (BigInt(token1amount) * BigInt(10 ** 18)) / BigInt(token0amount);
-  const sqrtPriceRatio = sqrt(priceRatio);
-  const sqrtPriceX96 = (sqrtPriceRatio * 2n ** 96n) / 10n ** 9n; */
-
   console.log("Adding initial liquidity, swapping and locking");
   const txtest = await factory.addLiquidityLockSwap(tokenAddress, amountIn, {
     value: amountIn,
@@ -92,12 +73,6 @@ async function main() {
   });
   await txtest.wait();
   console.log("Success!");
-
-  /* const tokensSwappedEvent = await getLatestEvent(factory, "TokensSwapped");
-
-  const tokensReceived = tokensSwappedEvent.args[0];
-  const formattedTokens = ethers.formatUnits(tokensReceived, 18);
-  console.log("Tokens received: ", formattedTokens); */
 }
 
 main()

@@ -1,28 +1,13 @@
 const hre = require("hardhat");
 const { ethers } = hre;
 
-async function getLatestEvent(token, eventname) {
-  // Get the filter for the specified event
-  const filter = token.filters[eventname]();
-
-  // Query the filter for events emitted by the contract
-  const events = await token.queryFilter(filter);
-
-  // Find the latest event
-  const latestEvent = events[events.length - 1]; // Get the latest event
-
-  return latestEvent;
-}
-
 async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("Removing liquidity with the account:", deployer.address);
 
-  const factoryAddress = "0xeDd1c182a8340c3B1fBD1bd74da303a8CbAe0b4f";
+  const factoryAddress = "0xB274EBe5EEc2FD4d44336cd25118611FDAFd01AF";
 
-  const lockerAddress = "0x5b52b749c1a30F34EEbD9A9abdC2311E3206f3Ab";
-
-  const position_manager = process.env.SEPOLIA_POSITION_MANAGER;
+  const lockerAddress = "0x75afe9B972a4aBD8baCa1c42558eAd1c89A7A697";
 
   const Factory = await hre.ethers.getContractFactory("MyFactory");
   const factory = await Factory.attach(factoryAddress);
@@ -103,17 +88,3 @@ main()
     console.error(error);
     process.exit(1);
   });
-
-function sqrt(value) {
-  if (value < 0n) {
-    throw new Error("Square root of negative numbers is not supported");
-  }
-  if (value === 0n) return 0n;
-  let z = value;
-  let x = value / 2n + 1n;
-  while (x < z) {
-    z = x;
-    x = (value / x + x) / 2n;
-  }
-  return z;
-}

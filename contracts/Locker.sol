@@ -71,7 +71,7 @@ contract LiquidityLocker is ERC721Holder {
         return lockId;
     }
 
-    // Unlocks the liquidity NFT
+    // Unlocks the liquidity NFT (if lock time has passed)
     function unlockLiquidity(uint256 _lockId, address factory) external onlyAuth {
         Lock storage lock = locks[_lockId];
         require(block.timestamp >= lock.unlockTime, "Liquidity is still locked");

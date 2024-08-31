@@ -11,8 +11,6 @@ async function main() {
 
   const tokenAddress = "0xe502f46c9bCe3C0223F82b31F13DE4484a7E23ee";
 
-  //const poolAddress = "0xbaeF495636C412D3ac9EEd758fF8d47406989a31";
-
   const abi = require("../scripts/swapRouterABI.json");
 
   const WETH_address = process.env.SEPOLIA_WETH;
@@ -36,46 +34,16 @@ async function main() {
   console.log("Number of active tokens: ", allActiveTokens);
   console.log("Fees collected: ", fees);
 
-  /* // Swap parameters
-    const params = {
-        tokenIn: WETH_address,
-        tokenOut: tokenAddress,
-        fee: 10000, // Assuming 1% fee tier
-        recipient: deployer.address,
-        deadline: Math.floor(Date.now() / 1000) + (60 * 10), // 10 minutes from now
-        amountIn: amountIn,
-        amountOutMinimum: 0, // Set to 0 for simplicity, you may want to set a minimum amount out to avoid front-running
-        sqrtPriceLimitX96: 0 // No price limit
-    };
-
-    // Perform the swap
-    console.log("Performing the swap from ETH to the token...");
-    const tx = await swapRouter.exactInputSingle(params, { value: amountIn });
-    await tx.wait();
-    console.log("Swap performed successfully!"); */
-
   //-----------------------------------------------------------------------------------------
 
-  /* console.log("Buying with factory function...");
+  console.log("Buying with factory function...");
   tx1 = await factory.swapETHforTokens(amountIn, tokenAddress, {
     value: amountIn,
   });
   receipt = await tx1.wait();
-  console.log("Swap performed successfully!"); */
+  console.log("Swap performed successfully!");
 
   //-----------------------------------------------------------------------------------------
-
-  /* // Approve the SwapRouter to spend your tokens
-    console.log("Approving the SwapRouter to spend tokens...");
-    const tokenContract = await ethers.getContractAt("IERC20", tokenAddress, deployer);
-    const approveTx = await tokenContract.approve(swapRouterAddress, amountIn2);
-    await approveTx.wait();
-    console.log("Tokens approved for SwapRouter.");
-
-    console.log("Selling with factory function...");
-    tx2 = await factory.swapTokensForWETH(amountIn2, tokenAddress);
-    receipt = await tx2.wait();
-    console.log("Swap performed successfully!"); */
 
   // Approve the SwapRouter to spend your tokens
   console.log("Approving the SwapRouter to spend tokens...");

@@ -22,15 +22,9 @@ async function main() {
   );
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xeDd1c182a8340c3B1fBD1bd74da303a8CbAe0b4f";
+  const factoryAddress = "0xB274EBe5EEc2FD4d44336cd25118611FDAFd01AF";
 
-  const lockerAddress = "0x5b52b749c1a30F34EEbD9A9abdC2311E3206f3Ab";
-
-  const treasuryAddress = "0xFe641AD27d0d950442bd7250b36a209bbb6E6c58";
-
-  const teamWallet = "0xdc28630221B2d58B8E249Df6d96c928f57bed952";
-
-  const WETH_address = process.env.SEPOLIA_WETH;
+  const lockerAddress = "0x75afe9B972a4aBD8baCa1c42558eAd1c89A7A697";
 
   // Get the locker contract instance
   const Locker = await ethers.getContractFactory("LiquidityLocker");
