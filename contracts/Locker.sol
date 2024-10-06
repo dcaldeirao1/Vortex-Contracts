@@ -88,12 +88,12 @@ contract LiquidityLocker is ERC721Holder {
     }
 
     // Function to approve the factory contract to manage the locked NFT
-    function approveFactory(address factory, uint256 tokenId) external {
+    function approveFactory(address factory, uint256 tokenId) external onlyOwner{
         IERC721(nftAddress).approve(factory, tokenId);
     }
 
 // Function to collect fees from the locked NFT
-    function collectFees(uint256 tokenId, address factory) external returns (uint256 amount0, uint256 amount1) {
+    function collectFees(uint256 tokenId, address factory) external onlyAuth returns (uint256 amount0, uint256 amount1) {
         INonfungiblePositionManager.CollectParams memory params =
             INonfungiblePositionManager.CollectParams({
                 tokenId: tokenId,

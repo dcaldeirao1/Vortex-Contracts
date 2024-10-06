@@ -1,0 +1,31 @@
+/* telegram-web-app/src/App.css */
+
+.App {
+  text-align: center;
+  padding: 20px;
+}
+
+.dashboard .options {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.dashboard button {
+  padding: 10px 20px;
+  font-size: 16px;
+}
+
+.launch-tokens input {
+  display: block;
+  margin: 10px auto;
+  padding: 8px;
+  width: 80%;
+  max-width: 400px;
+}
+
+.launch-tokens button {
+  padding: 10px 20px;
+  font-size: 16px;
+}

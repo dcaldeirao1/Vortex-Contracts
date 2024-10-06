@@ -7,9 +7,9 @@ async function main() {
   );
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xeDd1c182a8340c3B1fBD1bd74da303a8CbAe0b4f";
+  const factoryAddress = "0x258eBD61dD591Ca351FbC976379CFafB8D86D201";
 
-  const tokenAddress = "0xe502f46c9bCe3C0223F82b31F13DE4484a7E23ee";
+  const tokenAddress = "0xec08Ae6AEFcB3cEd7261B5957dfD70bd3be701c4";
 
   const abi = require("../scripts/swapRouterABI.json");
 
@@ -36,16 +36,23 @@ async function main() {
 
   //-----------------------------------------------------------------------------------------
 
-  console.log("Buying with factory function...");
+  /* console.log("Buying with factory function...");
   tx1 = await factory.swapETHforTokens(amountIn, tokenAddress, {
     value: amountIn,
   });
   receipt = await tx1.wait();
-  console.log("Swap performed successfully!");
+  console.log("Swap performed successfully!"); */
 
   //-----------------------------------------------------------------------------------------
 
-  // Approve the SwapRouter to spend your tokens
+  console.log("Retrieving user provided liquidity...");
+  tx10 = await factory.removeUserLiquidity(21251, 0);
+  receipt = await tx10.wait();
+  console.log("Liquidity retrieved successfully!");
+
+  //-----------------------------------------------------------------------------------------
+
+  /* // Approve the SwapRouter to spend your tokens
   console.log("Approving the SwapRouter to spend tokens...");
   const tokenContract = await ethers.getContractAt(
     "IERC20",
@@ -72,7 +79,7 @@ async function main() {
   console.log("Performing the swap from Tokens to ETH...");
   const tx2 = await swapRouter.exactInputSingle(params2);
   await tx2.wait();
-  console.log("Swap performed successfully!");
+  console.log("Swap performed successfully!"); */
 }
 
 main()

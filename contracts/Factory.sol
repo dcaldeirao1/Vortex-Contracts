@@ -7,8 +7,11 @@ import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.s
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/IQuoterV2.sol";
 import "contracts/Staking.sol";
 import "contracts/Token.sol";
+import "contracts/FactoryExtra.sol";
+
 
 contract MyFactory {
 
@@ -20,6 +23,8 @@ contract MyFactory {
     INonfungiblePositionManager public positionManager;
     IUniswapV3Factory public uniswapFactory;
     ISwapRouter public swapRouter;
+    IQuoterV2 public quoter;
+    FactoryHelper public factoryHelper;
     ILocker public locker;
     address public owner;
     address payable public stakingAddress;
@@ -29,10 +34,11 @@ contract MyFactory {
     address teamWallet;
     uint256 rewardAmount;
     address treasuryAddress;
-    uint256 wethProvided = 2 ether;
-    uint256 public lockTime1 = 7 days; 
-    uint256 public lockTime2 = 30 days; 
-    uint256 public maxZeroFeeDays = 15; 
+    uint256 wethProvided = 0.00001 ether;
+    uint256 priceToLaunch = 0.00002 ether;
+    uint256 public lockTime1 = 5; //7 days; 
+    uint256 public lockTime2 = 5; //30 days; 
+    uint256 public maxZeroFeeDays = 2; 
 
     // Struct where each token's details are saved
     struct TokenDetails {
@@ -50,6 +56,7 @@ contract MyFactory {
         uint256 unlockTime;
         bool isDEAD;
         bool maxWalletEnabled;
+        bool userLiquidity;
     }
 
     TokenDetails[] public allTokens;
@@ -77,28 +84,30 @@ contract MyFactory {
         _;
     }
 
-    // Functions with this modifier can only be called by the owner or the factory contract
+    // Functions with this modifier can only be called by the owner, factory contract or staking contract
     modifier onlyAuth() {
-        require(msg.sender == owner || msg.sender == address(this), "Caller is not authorized");
+        require(msg.sender == owner || msg.sender == address(this) || msg.sender == stakingAddress, "Caller is not authorized");
         _;
     }
 
-    constructor(address _positionManager, address _weth, address _uniswapFactory, address _swapRouter, address _lockerAddress, address _teamWallet) {
+    constructor(address _positionManager, address _weth, address _uniswapFactory, address _swapRouter, address _lockerAddress, address _teamWallet, address _quoterAddress, address _factoryHelper) {
         positionManager = INonfungiblePositionManager(_positionManager);
         uniswapFactory = IUniswapV3Factory(_uniswapFactory);
         swapRouter = ISwapRouter(_swapRouter);
         locker = ILocker(_lockerAddress);
         nftAddress = _positionManager;
         weth = _weth;
-        owner = msg.sender;  // Set the deployer as the owner
+        owner = msg.sender;  
         lockerAddress = _lockerAddress;
         teamWallet = _teamWallet;
+        quoter = IQuoterV2(_quoterAddress);
+        factoryHelper = FactoryHelper(_factoryHelper);
     }
 
 
 
     // Returns token details
-    function getAllTokens() public view onlyOwner returns (address[] memory addresses, address[] memory tokenCreators, address[] memory poolAddresses, uint256[] memory tokenIds, uint256[] memory timestamps, bool[] memory liquidityRemovedStatus, uint256[] memory zerofeesdays, bool[] memory inactive, uint256[] memory feefromswap, uint256[] memory lockIds, bool[] memory isTokenLocked, uint256[] memory unlockTimes, bool[] memory isDead, bool[] memory maxWallet) {
+    function getAllTokens() public view returns (address[] memory addresses, address[] memory tokenCreators, address[] memory poolAddresses, uint256[] memory tokenIds, uint256[] memory timestamps, bool[] memory liquidityRemovedStatus, uint256[] memory zerofeesdays, bool[] memory inactive, uint256[] memory feefromswap, uint256[] memory lockIds, bool[] memory isTokenLocked, uint256[] memory unlockTimes, bool[] memory isDead, bool[] memory maxWallet, bool[] memory isUserLiquidity) {
     addresses = new address[](allTokens.length);
     poolAddresses = new address[](allTokens.length); 
     tokenCreators = new address[](allTokens.length); 
@@ -113,6 +122,7 @@ contract MyFactory {
     unlockTimes = new uint256[](allTokens.length);
     isDead = new bool[](allTokens.length);
     maxWallet = new bool[](allTokens.length);
+    isUserLiquidity = new bool[](allTokens.length);
 
     for (uint i = 0; i < allTokens.length; i++) {
         addresses[i] = allTokens[i].tokenAddress;
@@ -129,8 +139,9 @@ contract MyFactory {
         unlockTimes[i] = allTokens[i].unlockTime;
         isDead[i] = allTokens[i].isDEAD;
         maxWallet[i] = allTokens[i].maxWalletEnabled;
+        isUserLiquidity[i] = allTokens[i].userLiquidity;
     }
-    return (addresses, poolAddresses, tokenCreators, tokenIds, timestamps, liquidityRemovedStatus, zerofeesdays, inactive, feefromswap, lockIds, isTokenLocked, unlockTimes, isDead, maxWallet);
+    return (addresses, poolAddresses, tokenCreators, tokenIds, timestamps, liquidityRemovedStatus, zerofeesdays, inactive, feefromswap, lockIds, isTokenLocked, unlockTimes, isDead, maxWallet, isUserLiquidity);
 }
 
 
@@ -146,16 +157,7 @@ contract MyFactory {
         return tokenAddress;
     }
 
-    // Calls UniV3 function to create and initialize a pool of a given token 
-     function createAndInitializePoolIfNecessary(
-        address token0,
-        address token1,
-        uint160 sqrtPriceX96
-    ) internal returns (address pool) {
-        pool = positionManager.createAndInitializePoolIfNecessary(token0, token1, 10000, sqrtPriceX96);
-        emit PoolCreated(token0, pool);
-        return pool;
-    }
+    
 
 
     // Function to get the pool address for a pool that's already been created and initialized
@@ -191,62 +193,42 @@ contract MyFactory {
         
     }
 
-    // Set locker address in the factory
-    function setLockerAddress(address payable _lockerAddress) external onlyOwner {
-        lockerAddress = _lockerAddress;        
-    }
+
+    function getEstimatedAmountOut(
+    address tokenIn, 
+    address tokenOut, 
+    uint256 amountIn
+) public returns (uint256 amountOut) {
+
+    // Call quoteExactInputSingle from QuoterV2
+    IQuoterV2.QuoteExactInputSingleParams memory params = IQuoterV2.QuoteExactInputSingleParams({
+        tokenIn: tokenIn,
+        tokenOut: tokenOut,
+        amountIn: amountIn,
+        fee: 10000,
+        sqrtPriceLimitX96: 0
+    });
+
+    // Call the QuoterV2 to get the amountOut
+    (amountOut,,,) = quoter.quoteExactInputSingle(params);
+
+    return amountOut;
+}
+
     
-    // Swaps a specific amount of eth for tokens
-    function swapETHforTokens (uint256 amountIn, address tokenAddress) public payable returns (uint256 amountOut) {
+    function swapETHforTokens(uint256 amountIn, address tokenAddress) public payable returns (uint256) {
+    uint256 estimatedAmountOut = getEstimatedAmountOut(weth, tokenAddress, amountIn);
+    uint256 amountOutMinimum = estimatedAmountOut * 95 / 100; // 5% slippage tolerance
+    approveToken(weth, address(swapRouter), amountIn);
+    return factoryHelper.executeSwap(weth, tokenAddress, amountIn, amountOutMinimum, msg.sender);
+}
 
-        // Approve the swap router to spend tokens
-        approveToken(weth, address(swapRouter), amountIn);
-
-        // Swap Parameters
-        ISwapRouter.ExactInputSingleParams memory params =
-            ISwapRouter.ExactInputSingleParams({
-                tokenIn: weth,
-                tokenOut: tokenAddress,
-                fee: 10000,
-                recipient: msg.sender,
-                amountIn: amountIn,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
-
-        // The call to `exactInputSingle` executes the swap.
-        amountOut = swapRouter.exactInputSingle{ value: msg.value }(params);
-        emit TokensSwapped(amountOut);
-
-        return amountOut;
-    }
-
-
-    // Swaps a specific amount of tokens for eth
-    function swapTokensForWETH(uint256 amountIn, address tokenAddress) internal onlyOwner returns (uint256 amountOut) {
-        
-        require(amountIn > 0, "Amount must be greater than zero");
-
-        // Approve the swap router to spend tokens
-        approveToken(tokenAddress, address(swapRouter), amountIn);
-
-        ISwapRouter.ExactInputSingleParams memory params =
-            ISwapRouter.ExactInputSingleParams({
-                tokenIn: tokenAddress,
-                tokenOut: weth,
-                fee: 10000,
-                recipient: address(this),
-                amountIn: amountIn,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
-
-        // The call to `exactInputSingle` executes the swap.
-        amountOut = swapRouter.exactInputSingle(params); 
-        
-        emit TokensSwapped(amountOut);
-        return amountOut;
-    }
+function swapTokensForWETH(uint256 amountIn, address tokenAddress) internal returns (uint256) {
+    uint256 estimatedAmountOut = getEstimatedAmountOut(tokenAddress, weth, amountIn);
+    uint256 amountOutMinimum = estimatedAmountOut * 95 / 100; // 5% slippage tolerance
+    approveToken(tokenAddress, address(swapRouter), amountIn);
+    return factoryHelper.executeSwap(tokenAddress, weth, amountIn, amountOutMinimum, address(this));
+}
 
     // Function to transfer WETH from the deployer to the factory contract
     function transferWETHToFactory(uint256 amount) external onlyOwner {
@@ -264,14 +246,33 @@ contract MyFactory {
     }
 
 
-    // Function that adds the initial liquidity to each token 
-    function addLiquidityLockSwap(address tokenAddress, uint256 amountToBuy) external payable returns (uint256 tokenId) {
+    // Function that adds the initial liquidity to each token      bool userLiquidity, uint256 userLiquidityAmount
+    function addLiquidityLockSwap(address tokenAddress, uint256 amountToBuy, bool userProvidedLiquidity) external payable returns (uint256 tokenId) {
 
-     // Check if the factory contract has enough WETH
-    uint256 wethBalance = IERC20(weth).balanceOf(address(this));
+    require(msg.value >= priceToLaunch, "Insufficient ETH sent. Required: 0.00015 ETH"); 
+    
+    uint256 providedLiquidity = wethProvided;
+
+    address poolAddress;
+
     uint256 tokenBalance = IERC20(tokenAddress).balanceOf(address(this));
 
-    require(wethBalance >= wethProvided, "Not enough WETH in the factory contract");
+    if(userProvidedLiquidity == false) {
+
+    // Check if the factory contract has enough WETH
+    uint256 wethBalance = IERC20(weth).balanceOf(address(this));
+
+    require(wethBalance >= wethProvided, "Not enough WETH in the factory contract");}
+
+    if(userProvidedLiquidity == true) {
+
+    require(msg.value > 0, "Must send ETH to convert");
+
+    providedLiquidity = msg.value - amountToBuy;
+
+    IWETH(weth).deposit{value: providedLiquidity}();
+    
+    }
 
     address token0;
     address token1;
@@ -282,43 +283,16 @@ contract MyFactory {
         token0 = tokenAddress;
         token1 = weth;
         token0amount = tokenBalance;
-        token1amount = wethProvided;
+        token1amount = providedLiquidity;
     } else {
         token0 = weth;
         token1 = tokenAddress;
-        token0amount = wethProvided;
+        token0amount = providedLiquidity;
         token1amount = tokenBalance;
     }
 
-    // Calculate sqrtPriceX96 considering both tokens have 18 decimals 
-    uint256 priceRatio = (token1amount * 1e18) / token0amount;
-    uint256 sqrtPriceRatio = sqrt(priceRatio);
-    uint160 sqrtPrice_X96 = uint160((sqrtPriceRatio * 2**96) / 1e9);
-
-    // Create and Initialize Pool
-    address poolAddress = createAndInitializePoolIfNecessary(token0, token1, sqrtPrice_X96);
-
-    // Approve the position manager to spend tokens
-    TransferHelper.safeApprove(token0, address(positionManager), token0amount);
-    TransferHelper.safeApprove(token1, address(positionManager), token1amount);
-
-    // Adding initial liquidity
-    INonfungiblePositionManager.MintParams memory params =
-            INonfungiblePositionManager.MintParams({
-                token0: token0,
-                token1: token1,
-                fee: 10000,
-                tickLower: -887200,
-                tickUpper: 887200,
-                amount0Desired: token0amount,
-                amount1Desired: token1amount,
-                amount0Min: 0,
-                amount1Min: 0,
-                recipient: address(this),
-                deadline: block.timestamp + 5 minutes
-            });
-        
-        (tokenId,,,) = positionManager.mint(params);
+        // Call addLiquidityHelper and add lp
+        (poolAddress, tokenId) = factoryHelper.addLiquidityHelper(token0, token1, token0amount, token1amount);
 
         // Approve the locker contract to manage the liquidity NFT
         IERC721(address(positionManager)).approve(lockerAddress, tokenId);
@@ -343,7 +317,8 @@ contract MyFactory {
         isLocked: true,
         unlockTime: block.timestamp + lockTime1,
         isDEAD: false,
-        maxWalletEnabled: true
+        maxWalletEnabled: true,
+        userLiquidity: userProvidedLiquidity
     }));
 
     // Save the index of the new token details in the mapping
@@ -366,19 +341,8 @@ contract MyFactory {
 
         payable(teamWallet).transfer(taxAmount);
 
-        approveToken(weth, address(swapRouter), amountToSwap);
-        ISwapRouter.ExactInputSingleParams memory swapParams =
-                    ISwapRouter.ExactInputSingleParams({
-                tokenIn: weth,
-                tokenOut: tokenAddress,
-                fee: 10000,
-                recipient: msg.sender,
-                amountIn: amountToSwap,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            });
-        uint256 amountOut = swapRouter.exactInputSingle{ value: amountToSwap }(swapParams);
-        emit TokensSwapped(amountOut);
+        swapETHforTokens(amountToSwap, tokenAddress);
+
         fee = amountToBuy * 1 / 100;
     }
 
@@ -516,10 +480,13 @@ function resetNoFeeDays(uint256 tokenId) internal {
     IWETH(weth).withdraw(totalFeesCollected);
 
     // Calculate distribution amounts
-    uint256 stakersAmount = totalFeesCollected / 8 * 3;
-    uint256 treasuryAmount = totalFeesCollected / 8 * 3;
+    uint256 liquidityAmount = totalFeesCollected / 8 * 15;
+    uint256 stakersAmount = totalFeesCollected / 8 * 25;
+    uint256 treasuryAmount = totalFeesCollected / 8 * 2;
     uint256 teamAmount = totalFeesCollected / 8 * 2;
-    
+
+    // Send to the token's liquidity
+    // addLiquidity(tokenAddress, liquidityAmount)();
 
     // Send to staking contract by calling addRewards function
     SimpleStaking(stakingAddress).addRewards{value: stakersAmount}();
@@ -584,29 +551,13 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
 
 
     // Function to remove liquidity
-    function removeLiquidity(uint256 tokenId, uint128 liquidityToRemove) internal onlyOwner returns (uint256 collectedAmount0, uint256 collectedAmount1) {
+    function removeLiquidity(uint256 tokenId, uint128 liquidityToRemove) internal returns (uint256 collectedAmount0, uint256 collectedAmount1) {
 
         uint256 index = tokenIndex[tokenId]; 
         //require(!allTokens[index].liquidityRemoved, "Liquidity already removed");
 
-        // Decrease liquidity
-        positionManager.decreaseLiquidity(
-            INonfungiblePositionManager.DecreaseLiquidityParams({
-                tokenId: tokenId,
-                liquidity: liquidityToRemove,
-                amount0Min: 0,
-                amount1Min: 0,
-                deadline: block.timestamp
-            }));
-
         // Collect the tokens from the position
-        (collectedAmount0, collectedAmount1) = positionManager.collect(
-            INonfungiblePositionManager.CollectParams({
-                tokenId: tokenId,
-                recipient: address(this),
-                amount0Max: type(uint128).max,
-                amount1Max: type(uint128).max
-            }));
+        (collectedAmount0, collectedAmount1) = factoryHelper.removeLiquidity(tokenId, liquidityToRemove);
 
         allTokens[index].liquidityRemoved = true; // Update the liquidity removed status
         emit LiquidityRemoved(msg.sender, tokenId, collectedAmount0, collectedAmount1);
@@ -614,6 +565,32 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
         tryToSendFunds();
         return (collectedAmount0, collectedAmount1);
          
+    }
+
+    // Function to remove the user provided initial liquidity 
+    function removeUserLiquidity(uint256 tokenId, uint256 lockId, uint128 percentAmount) external {
+
+        uint256 index = tokenIndex[tokenId]; 
+        address tokenOwner = allTokens[index].tokenCreator;
+        // only the token creator can remove liquidity
+        require(msg.sender == tokenOwner, "Caller is not the token creator");
+
+        // If 7 days have passed since launch unlock the liquidity
+        ILocker lockerContract = ILocker(lockerAddress);
+        lockerContract.unlockLiquidity(lockId, address(this));
+
+        storeLockID(tokenId, lockId, false, 0);
+
+        // Fetch the position details
+        (,, address token0, address token1, , , , uint128 liquidity, , , ,) = positionManager.positions(tokenId);
+
+        uint128 liquidityAmount = percentAmount * liquidity;
+
+        (uint collectedAmount0, uint collectedAmount1) = removeLiquidity(tokenId, liquidityAmount);
+
+        IERC20(token0).transfer(msg.sender, collectedAmount0);
+
+        IERC20(token1).transfer(msg.sender, collectedAmount1);
     }
 
     // Function to remove the provided initial liquidity (one week after launch)
@@ -632,10 +609,14 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
 
         address poolAddress = uniswapFactory.getPool(token0, token1, fee);
 
-        // Fetch pool state (price, liquidity, etc.)
+        // Use the TWAP to calculate the price
+        uint32 twapInterval = 1800;  // Set TWAP period (e.g., 30 minutes)
+        uint256 price = factoryHelper.getTWAPPrice(poolAddress, twapInterval);
+
+        /* // Fetch pool state (price, liquidity, etc.)
         IUniswapV3Pool poolContract = IUniswapV3Pool(poolAddress);
         (uint160 sqrtPriceX96,,,,,,) = poolContract.slot0();
-        uint256 price = (uint256(sqrtPriceX96) ** 2 * 10 ** 18) / (2 ** 192);
+        uint256 price = (uint256(sqrtPriceX96) ** 2 * 10 ** 18) / (2 ** 192); */
 
         // Calculate the corresponding amount of tokens to remove
         uint256 tokensToRemove = (wethAmountToRemove * 10 ** 18) / price;
@@ -765,7 +746,7 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
     }
 
     // if the factory has funds not being lent, sent to unstakers
-    function tryToSendFunds() public {
+    function tryToSendFunds() public onlyAuth {
         uint256 availableWETH = IERC20(weth).balanceOf(address(this));
             if (availableWETH >= pendingFunds && pendingFunds > 0) {
                 IERC20(weth).transfer(stakingAddress, pendingFunds);
@@ -776,7 +757,7 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
     }
 
     //if factory has funds, and is requested by the staking pool 
-    function provideFundsIfNeeded(address _stakingContract, uint256 amountRequested) public {
+    function provideFundsIfNeeded(address _stakingContract, uint256 amountRequested) external onlyAuth {
         uint256 availableWETH = IWETH(weth).balanceOf(address(this));
             if (availableWETH >= amountRequested) {
                 IWETH(weth).transfer(_stakingContract, amountRequested);
@@ -787,26 +768,8 @@ function sqrt(uint256 y) internal pure returns (uint256 z) {
 }
 
 
-interface ISwapRouter {
-    struct ExactInputSingleParams {
-        address tokenIn;
-        address tokenOut;
-        uint24 fee;
-        address recipient;
-        uint256 amountIn;
-        uint256 amountOutMinimum;
-        uint160 sqrtPriceLimitX96;
-    }
-
-    function exactInputSingle(ExactInputSingleParams calldata params) external payable returns (uint256 amountOut);
-}
-
 interface ISimpleStaking {
     function notifyFundsReceived(uint256 amount) external;
 }
 
-interface ILocker {
-    function lockLiquidity(address _nftAddress, uint256 _tokenId, uint256 _duration, address factory) external returns (uint256 lockId);
-    function unlockLiquidity(uint256 _lockId, address factory) external;
-    function collectFees(uint256 tokenId, address factory) external returns(uint256 amount0, uint256 amount1);
-}
+

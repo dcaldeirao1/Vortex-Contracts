@@ -2,11 +2,12 @@ const { ethers } = require("hardhat");
 
 async function main() {
   //Setting contract addresses
-  const uniswapV3Factory_address = process.env.BNB_UNISWAP_FACTORY;
-  const positionManager_address = process.env.BNB_POSITION_MANAGER;
-  const swap_router = process.env.BNB_SWAP_ROUTER;
-  const WETH_address = process.env.WBNB;
+  const uniswapV3Factory_address = process.env.SEPOLIA_UNISWAP_FACTORY;
+  const positionManager_address = process.env.SEPOLIA_POSITION_MANAGER;
+  const swap_router = process.env.SEPOLIA_SWAP_ROUTER;
+  const WETH_address = process.env.SEPOLIA_WETH;
   const teamWallet = process.env.TEAM_WALLET;
+  const quoter = process.env.SEPOLIA_QUOTER;
 
   const [deployer] = await ethers.getSigners();
 
@@ -18,6 +19,20 @@ async function main() {
   console.log("MyLocker address:", MyLockerDeployment.target);
   const lockerAddress = MyLockerDeployment.target;
 
+  const MyHelper = await ethers.getContractFactory("FactoryHelper");
+  const MyHelperDeployment = await MyHelper.deploy(
+    positionManager_address,
+    WETH_address,
+    uniswapV3Factory_address,
+    swap_router,
+    lockerAddress,
+    teamWallet,
+    quoter
+  );
+
+  console.log("MyHelper address:", MyHelperDeployment.target);
+  const helperAddress = MyHelperDeployment.target;
+
   const MyFactory = await ethers.getContractFactory("MyFactory");
   const myFactory = await MyFactory.deploy(
     positionManager_address,
@@ -25,7 +40,9 @@ async function main() {
     uniswapV3Factory_address,
     swap_router,
     lockerAddress,
-    teamWallet
+    teamWallet,
+    quoter,
+    helperAddress
   );
   const factoryAddress = myFactory.target;
   console.log("MyFactory address:", myFactory.target);
@@ -63,7 +80,7 @@ async function main() {
   console.log("Done!");
 
   // Amount of WETH to send (in Wei)
-  const amountInWei = ethers.parseUnits("0.0003", 18);
+  const amountInWei = ethers.parseUnits("0.00002", 18);
 
   // WETH ABI
   const WETHAbi = require("../scripts/WETHabi.json");

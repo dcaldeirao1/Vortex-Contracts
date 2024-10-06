@@ -37,14 +37,14 @@ async function main() {
   );
 
   // Replace these with your desired token name, symbol, and total supply
-  const tokenName = "ShitCoin";
-  const tokenSymbol = "Shit";
+  const tokenName = "CatCoin";
+  const tokenSymbol = "CAT";
   const tokenSupply = "100";
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xB274EBe5EEc2FD4d44336cd25118611FDAFd01AF";
+  const factoryAddress = "0x81384fa3E7277516A88e1F28c3D4c5f320d759E9";
 
-  const lockerAddress = "0x75afe9B972a4aBD8baCa1c42558eAd1c89A7A697";
+  const lockerAddress = "0x87A47ECD629bEAEFeD2854F985247095083FdC62";
 
   // Connect to the factory contract using its ABI and address
   const Factory = await ethers.getContractFactory("MyFactory");
@@ -54,7 +54,11 @@ async function main() {
   const locker = await LiquidityLocker.attach(lockerAddress);
 
   // Amount of ETH to swap
-  const amountIn = ethers.parseUnits("0.0000000", 18); // 0.01 ETH
+  const amountIn = ethers.parseUnits("0.0000001", 18);
+
+  const liquidityAmount = ethers.parseUnits("0.0000012", 18);
+
+  const launchPrice = ethers.parseUnits("0.00002", 18);
 
   // Call the deployToken function of the factory contract
   const tx = await factory.deployToken(tokenName, tokenSymbol, tokenSupply);
@@ -67,10 +71,15 @@ async function main() {
   console.log("Token Address: ", tokenAddress);
 
   console.log("Adding initial liquidity, swapping and locking");
-  const txtest = await factory.addLiquidityLockSwap(tokenAddress, amountIn, {
-    value: amountIn,
-    gasLimit: 9000000,
-  });
+  const txtest = await factory.addLiquidityLockSwap(
+    tokenAddress,
+    amountIn,
+    false,
+    {
+      value: amountIn + liquidityAmount + launchPrice,
+      gasLimit: 9000000,
+    }
+  );
   await txtest.wait();
   console.log("Success!");
 }

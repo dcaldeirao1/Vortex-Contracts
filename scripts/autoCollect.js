@@ -22,9 +22,9 @@ async function main() {
   );
 
   // Replace this with the address of the deployed factory contract
-  const factoryAddress = "0xB274EBe5EEc2FD4d44336cd25118611FDAFd01AF";
+  const factoryAddress = "0xd48347c1cafcc936084aDEB0540362106926a992";
 
-  const lockerAddress = "0x75afe9B972a4aBD8baCa1c42558eAd1c89A7A697";
+  const lockerAddress = "0x48f88f06fA96f77D8CC5909d7502e741390A47Cb";
 
   // Get the locker contract instance
   const Locker = await ethers.getContractFactory("LiquidityLocker");
@@ -49,6 +49,8 @@ async function main() {
     isLocked,
     unlockTime,
     isDead,
+    maxWallet,
+    isUserLiquidity,
   ] = await factory.getAllTokens();
 
   // Print results
@@ -65,6 +67,8 @@ async function main() {
   console.log("isLocked: ", isLocked);
   console.log("unlockTime: ", unlockTime);
   console.log("isDead: ", isDead);
+  console.log("maxWallet: ", maxWallet);
+  console.log("isUserLiquidity: ", isUserLiquidity);
 
   // Loop through all tokens to check their launch time
 
