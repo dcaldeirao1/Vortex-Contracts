@@ -17,7 +17,12 @@ const LaunchTokens = () => {
 
     try {
       // Initialize WalletConnect Provider
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      // Initialize Ethereum Provider
+      const provider = new ethers.InfuraProvider(
+        "sepolia",
+        process.env.INFURA_PROJECT_ID
+      );
+      //const provider = new ethers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
 
       // Vortex Token Contract ABI
@@ -43,7 +48,7 @@ const LaunchTokens = () => {
       const tx = await vortexToken.deploy(
         tokenName,
         tokenSymbol,
-        ethers.utils.parseUnits(initialSupply, 18),
+        ethers.parseUnits(initialSupply, 18),
         await signer.getAddress()
       );
 

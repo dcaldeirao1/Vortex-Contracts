@@ -6,6 +6,7 @@ import LaunchTokens from "./components/LaunchTokens";
 import Stake from "./components/Stake";
 import Trade from "./components/Trade";
 import Header from "./components/Header";
+import StartPage from "./pages/Start";
 import "./App.css";
 
 function App() {
@@ -38,6 +39,7 @@ function App() {
           <Route path="/create-token" element={<LaunchTokens />} />
           <Route path="/stake" element={<Stake />} />
           <Route path="/trade" element={<Trade />} />
+          <Route path="/start" element={<StartPage />} />
         </Routes>
       </div>
     </Router>
